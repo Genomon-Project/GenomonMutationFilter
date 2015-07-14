@@ -84,6 +84,9 @@ class RealignmentFilter:
             # get the flag information
             flags = format(int(read.flag), "#014b")[:1:-1]
 
+            # skip improper pair
+            if flags[1] == "0": continue 
+
             # skip unmapped read 
             if flags[2] == "1" or flags[3] == "1": continue 
 
@@ -92,16 +95,6 @@ class RealignmentFilter:
 
             # skip duplicated reads
             if flags[10] == "1": continue
-
-            # chr_current = bamfile.getrname(read.tid)
-            # pos_current = int(read.pos + 1)
-            # dir_current = ("-" if flags[4] == "1" else "+")
-            # chr_pair = bamfile.getrname(read.rnext)
-            # pos_pair = int(read.pnext + 1)
-            # dir_pair = ("-" if flags[5] == "1" else "+")
-            
-            chr_pair = bamfile.getrname(read.rnext)
-            print chr_pair
 
             tempSeq = ""
             if flags[4] == "1":
