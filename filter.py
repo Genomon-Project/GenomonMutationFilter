@@ -1,0 +1,222 @@
+#!/usr/local/package/python2.7/2.7.2/bin/python
+"""
+
+bamfilter.py
+
+
+"""
+import sys
+import os
+import re
+import pysam
+import scipy.special
+import argparse
+import logging
+import math
+from TabixDBFilter import TabixDBFilter
+from BreakPointFilter import BreakPointFilter
+from IndelFilter import IndelFilter
+from RealignmentFilter import RealignmentFilter
+
+#
+# Globals
+#
+arg = None
+
+############################################################
+def read_mutation_file(
+        in_mutation_file = None,
+        header_flg = '1',
+        format = 'anno'
+        ):
+    srcfile = open(in_mutation_file,'r')
+  
+    mutation_file_info = {}
+    try:
+        chrIndex = 0
+        if ( header_flg == '1' ):
+            header = srcfile.readline()  
+            headerlist = header.split('\t')
+            for colname in headerlist:
+                if (colname == 'Chr'): 
+                    break
+                chrIndex += 1
+
+        mutation_line_info_list = []
+        for line in srcfile:
+            line = line.rstrip()
+            itemlist = line.split('\t')
+
+            # input file is annovar format (not zero-based number)
+            chr = itemlist[chrIndex]
+            start = (int(itemlist[chrIndex + 1]))
+            end = int(itemlist[chrIndex + 2])
+            ref = itemlist[chrIndex + 3]
+            alt = itemlist[chrIndex + 4]
+            
+            chr = chr.replace('chr', '') 
+
+            if (format == 'anno'):
+                start -= 1
+        
+            mutation_line_info = [line,
+                                  { 'chr': chr, 'start': start, 'end': end, 'ref': ref, 'alt': alt },
+                                  [],   # filter flags
+                                  [],   # annotation columns
+            ]
+            mutation_line_info_list.append(mutation_line_info)
+        
+        mutation_file_info = { 'header': header.rstrip(),
+                               'line_info': mutation_line_info_list,
+                               'anno_header': []
+        }
+
+    except Exception as e:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        logging.error( ("{0}: {1}:{2}".format( exc_type, fname, exc_tb.tb_lineno) ) )
+        raise
+
+    finally:
+        srcfile.close
+    
+    return mutation_file_info
+
+############################################################
+def construct_arguments():
+
+    #
+    # Arguments
+    #
+    parser = argparse.ArgumentParser( description = 'mutation filter' )
+
+    parser.add_argument( '-1', '--bam_tumor',      help = '1st bam file ( tumor )',   type = str,  default = None  ,required = True)
+    parser.add_argument( '-2', '--bam_normal',     help = '2nd bam file ( normal )',  type = str,  default = None )
+    parser.add_argument( '-m', '--input_mutation', help = 'Input mutation file',      type = str,  default = None  ,required = True)
+    parser.add_argument( '-o', '--output',         help = 'Output text file',         type = str,  default = None  ,required = True)
+
+    # Select Filter Method
+    parser.add_argument( '-s', '--skip_simple_repeat',  help = 'Skip Simple Repeat Filter', action='store_true' )
+    parser.add_argument( '-b', '--skip_breakpoint',     help = 'Skip Breakpoint Filter',    action='store_true' )
+    parser.add_argument( '-i', '--skip_indel',          help = 'Skip Indel Filter',         action='store_true' )
+    parser.add_argument( '-r', '--skip_realignment',    help = 'Skip Realignment Filter',   action='store_true' )
+
+
+    # parser.add_argument( '-2', '--bam_normal',     help = '2nd bam file ( normal )',  type = str,  default = None )
+    # parser.add_argument( '-r', '--ref_fa',         help = 'Reference FASTA',      type = str,  default = None )
+    # parser.add_argument( '-c', '--compare',       help = 'Compare two samples', action = 'store_true', default = False )
+    # parser.add_argument( '-q', '--base_quality',  help = 'Base quality threshold',   type = int,     default = 15 )
+    # parser.add_argument( '-m', '--mismatch_rate', help = 'Mismatch rate',            type = float,   default = 0.07 )
+    # parser.add_argument( '-p', '--post_10_q', help = '10% posterior quantile threshold', type = float, default = 0.05 )
+    # parser.add_argument( '-f', '--fisher_value',  help = 'fisher threshold',         type = float,   default = 0.05 )
+    # parser.add_argument( '-d', '--min_depth',     help = 'Mimimum depth',            type = float,   default = 9 )
+
+
+    #
+    # Log settings
+    #
+    parser.add_argument( '-g', '--log_file',  help = "Log file name", type = str, default = None )
+    parser.add_argument( '-l', '--log_level', help = "Logging level", type = str, default = 'DEBUG' )
+
+    return parser
+            
+
+############################################################
+def PrintHeader( myself, arg ):
+    now = datetime.now()
+
+    logging.info( '#' * 84 )
+    logging.info( '# Summary' )
+    logging.info( '# Generated by {my}'.format( my = myself ) )
+    logging.info( '# %(y)d.%(m)d.%(d)d.%(h)d:%(m)d' % { 'y': now.year, 'm': now.month, 'd': now.day, 'h': now.hour, 'm': now.minute } )
+    logging.info( '#' * 84 + '' )
+    logging.info( "input_mutation: {0}".format( arg.input_mutation ) )
+    logging.info( "output: {0}".format( arg.output ) )
+    logging.info( '-' * 84 + '' )
+
+############################################################
+#
+# Main
+#
+def main():
+
+    #
+    # Arguments parse
+    #
+    argvs = sys.argv
+    myself = argvs[ 0 ]
+    argc = len(argvs)
+
+    arg_parser = construct_arguments()
+    
+    if argc < 2:
+        arg_parser.print_help()
+        sys.exit(1)
+    
+    global arg
+    arg = arg_parser.parse_args()
+
+
+    #
+    # logging setup
+    #
+    # Level     function            value    description
+    # CRITICAL  logging.critical()  50      Output only critical errors
+    # ERROR     logging.error()     40      Output errors
+    # WARNING   logging.warning()   30      Output warnings
+    # INFO      logging.info()      20      Output information
+    # DEBUG     logging.debug()     10      Output debug information
+    # NOTSET                        0       Output all
+    #
+    level = logging.getLevelName( arg.log_level )
+
+    if arg.log_file:
+        logging.basicConfig( filename   = arg.log_file,
+                             level      = level,
+                             format     = '%(asctime)s %(message)s',
+                             datefmt    ='%m/%d/%Y %I:%M:%S%p' )
+    else:
+        logging.basicConfig( level      = level,
+                             format     = '%(asctime)s %(message)s',
+                             datefmt    ='%m/%d/%Y %I:%M:%S%p' )
+    #
+    # Main function
+    #
+    mutation_file_info = read_mutation_file( 
+           in_mutation_file = arg.input_mutation,
+           header_flg = '1'
+          )
+
+    tmpDirs = arg.output + '/tmp'
+    if not os.path.isdir(tmpDirs):
+        os.makedirs(tmpDirs)
+
+    if not arg.skip_simple_repeat:
+        tbxFilter = TabixDBFilter()
+        tbxFilter.filter(mutation_file_info,'/home/kchiba/work_mutation_test/db/simpleRepeat.bed.bgz')
+
+    if not arg.skip_breakpoint:
+        bpFilter = BreakPointFilter(mutation_file_info)
+        bpFilter.filter(arg.bam_tumor)
+
+    if not arg.skip_indel:
+        indelFilter = IndelFilter(mutation_file_info)
+        indelFilter.filter(arg.bam_tumor)
+    
+    if not arg.skip_realignment:
+        realignFilter = RealignmentFilter(mutation_file_info)
+        realignFilter.filter(arg.bam_tumor, arg.bam_normal, tmpDirs)
+
+
+    print mutation_file_info['header']
+    for mutation_line_info in mutation_file_info['line_info']:
+#        if 1 in mutation_line_info[2]:
+        print mutation_line_info[0] +"\t"+"\t".join(mutation_line_info[3]) 
+
+
+#
+################################################################################
+if __name__ == '__main__':
+    main()
+
+
