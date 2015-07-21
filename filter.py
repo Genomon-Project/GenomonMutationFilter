@@ -17,6 +17,7 @@ from TabixDBFilter import TabixDBFilter
 from BreakPointFilter import BreakPointFilter
 from IndelFilter import IndelFilter
 from RealignmentFilter import RealignmentFilter
+from CheckMappabilityFilter import CheckMappabilityFilter
 
 #
 # Globals
@@ -206,6 +207,9 @@ def main():
     if not arg.skip_realignment:
         realignFilter = RealignmentFilter(mutation_file_info)
         realignFilter.filter(arg.bam_tumor, arg.bam_normal, tmpDirs)
+
+    mappabilityFilter = CheckMappabilityFilter(mutation_file_info)
+    mappabilityFilter.filter(tmpDirs)
 
 
     print mutation_file_info['header']
