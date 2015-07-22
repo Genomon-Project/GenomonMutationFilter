@@ -21,7 +21,6 @@ class RealignmentFilter:
 
         self.reference_genome = '/home/ogawaprj/ngs/ref/GRCh37-lite_PCAWG_bwa-0.7.10/GRCh37-lite_PCAWG.fa'
         self.window = int(200)
-        self.window_pos = int(50)
 
         self.tumor_min_mismatch = int(3)
         self.normal_max_mismatch = int(1)
@@ -89,7 +88,7 @@ class RealignmentFilter:
 #            if flags[1] == "0": continue 
 
             # skip unmapped read 
-            if flags[2] == "1" or flags[3] == "1": continue 
+#            if flags[2] == "1" or flags[3] == "1": continue 
 
             # skip supplementary alignment
             if flags[8] == "1" or flags[11] == "1": continue
@@ -197,6 +196,8 @@ class RealignmentFilter:
         tempRef = []
         ####
         for line in hIN:
+            # print line.rstrip('\n')
+
             F = line.rstrip('\n').split('\t')
             if F[0].isdigit() == False: continue
 
@@ -210,8 +211,8 @@ class RealignmentFilter:
                     # if ((self.checkSecondBestAlignment(tempAlt) == 0) and (self.checkSecondBestAlignment(tempRef) == 0)):
                         tempAltScore, tempAltNM = self.getScore(tempAlt)
                         tempRefScore, tempRefNM = self.getScore(tempRef)
-                        if tempAltNM >= self.max_mismatch and tempRefNM >= self.max_mismatch: numOther.append(tempID)
-                        elif tempAltScore == tempRefScore: numOther.append(tempID)
+                        # if tempAltNM >= self.max_mismatch and tempRefNM >= self.max_mismatch: numOther.append(tempID)
+                        if tempAltScore == tempRefScore: numOther.append(tempID)
                         elif tempAltScore >  tempRefScore: numAlt.append(tempID)
                         elif tempAltScore <  tempRefScore: numRef.append(tempID)
 
@@ -224,7 +225,7 @@ class RealignmentFilter:
             z = F[20].split(',')
             number_of_mismatch = int(F[1]) + int(F[3])
 
-            for i in range(1, int(F[17]) -1):
+            for i in range(1, int(F[17])):
             
                 ly = int(y[i]) - int(y[i - 1]) - int(x[i - 1]) 
                 lz = int(z[i]) - int(z[i - 1]) - int(x[i - 1]) 
@@ -246,132 +247,14 @@ class RealignmentFilter:
         # if ((self.checkSecondBestAlignment(tempAlt) == 0) and (self.checkSecondBestAlignment(tempRef) == 0)):
             tempAltScore, tempAltNM = self.getScore(tempAlt)
             tempRefScore, tempRefNM = self.getScore(tempRef)
-            if tempAltNM >= self.max_mismatch and tempRefNM >= self.max_mismatch: numOther.append(tempID)
-            elif tempAltScore == tempRefScore: numOther.append(tempID)
+            # if tempAltNM >= self.max_mismatch and tempRefNM >= self.max_mismatch: numOther.append(tempID)
+            if tempAltScore == tempRefScore: numOther.append(tempID)
             elif tempAltScore >  tempRefScore: numAlt.append(tempID)
             elif tempAltScore <  tempRefScore: numRef.append(tempID)
 
 
         return([len(set(numRef)), len(set(numAlt)), len(set(numOther))])
                
-
-    ############################################################
-    def makePosFasta(self, outputFilePath):
-
-        hOUT = open(outputFilePath, 'w')
-
-        for mutation_line_info in self.mfi['line_info']:
-            chr = mutation_line_info[1]['chr']
-            start = mutation_line_info[1]['start']
-            end = mutation_line_info[1]['end']
-            ref = mutation_line_info[1]['ref']
-            alt = mutation_line_info[1]['alt']
-
-            seq = ""
-            label = ','.join([chr, str(start), str(end), ref, alt])
-            range = chr + ":" + str(int(start) - self.window_pos + 1) +"-"+ str(int(end) + self.window_pos)
-            for item in pysam.faidx(self.reference_genome, range):
-                if item[0] == ">": continue
-                seq = seq + item.rstrip('\n').upper()
-
-            # for insertion
-            if ref == "-":   seq = seq[0:(self.window_pos + 1)] + alt + seq[-self.window_pos:]
-            # for deletion
-            elif alt == "-": seq = seq[0:self.window_pos] + seq[-self.window_pos:]
-            # for SNV
-            else:            seq = seq[0:self.window_pos] + alt + seq[-self.window_pos:]
-
-            print >> hOUT, '>' + label
-            print >> hOUT, seq
-
-        hOUT.close()
-
-
-    ############################################################
-    def summarizeAlt(self, inputPsl):
-        
-        hIN = open(inputPsl, 'r')
-
-        resultDict = {}
-        
-        tempID = ""
-        tempMyScore = int(0)
-        tempElseScore = []
-        ####
-        for line in hIN:
-            F = line.rstrip('\n').split('\t')
-            if F[0].isdigit() == False: continue
-
-            # remove the read pair num info ("/1", "/2") 
-            if tempID != F[9]:
-                if tempID != "":
-                
-                    ####
-                    tempElseMaxScore, tempElseMaxRegion = self.getScore(tempElseScore)
-                    resultDict[tempID] = str(tempMyScore) +'\t'+ str(tempElseMaxScore) +'\t'+ str(tempElseMaxRegion) 
-        
-                tempID = F[9]
-                tempMyScore = int(0)
-                tempElseScore = []
-            
-            tchr = F[13]
-            tstart = F[15]
-            tend = F[16]
-            FF = tempID.split(','); 
-
-            # print tempID +"\t"+ F[0] +"\t"+tchr + "\t" + str(tstart) + "\t" + str(tend)
-            # print tempID +"\t"+ F[0] +"\t"+FF[0] + "\t" + str(int(FF[1]) - self.window_pos) + "\t" + str(int(FF[2]) + self.window_pos)
-
-            if (str(FF[0]) == str(tchr) and (int(FF[1]) - self.window_pos) == int(tstart) and (int(FF[2]) + self.window_pos) == int(tend)):
-                tempMyScore = F[0];
-            else:
-                tempElseScore = []
-                tempElseScore.append((F[0], tchr +':'+ tstart +'-'+ tend))
-
-        hIN.close()
-
-        tempElseMaxScore, tempElseMaxRegion = self.getScore(tempElseScore)
-        resultDict[tempID] = str(tempMyScore) +'\t'+ str(tempElseMaxScore) +'\t'+ tempElseMaxRegion 
-
-        # for key in resultDict:
-        #  print key + "\t" + resultDict[key]
-
-        return resultDict
-
-
-    ############################################################
-    def set_map_ability_info(self, mapAbilityDict):
-        
-        # for key in mapAbilityDict:
-        #   print key + "\t" + mapAbilityDict[key]
-
-        for mutation_line_info in self.mfi['line_info']:
-            chr = mutation_line_info[1]['chr']
-            start = mutation_line_info[1]['start']
-            end = mutation_line_info[1]['end']
-            ref = mutation_line_info[1]['ref']
-            alt = mutation_line_info[1]['alt']
-
-            score = ''
-            label = ','.join([chr, str(start), str(end), ref, alt])
-            if label in mapAbilityDict: 
-                scores = mapAbilityDict[label]
-                tempMyScore, tempElseMaxScore, tempElseMaxRegion = scores.split('\t')
-
-                if int(tempMyScore) == 0:
-                    score = 'unaligned' +'\t'+ '---'
-                    
-                elif int(tempElseMaxScore) == 0:
-                    score = '---' +'\t'+ '---'
-
-                else:
-                    score = str(tempElseMaxRegion) +'\t'+ str(int(tempMyScore) - int(tempElseMaxScore))
-
-            else:
-                score = 'unaligned' +'\t'+ '----'
-
-            mutation_line_info[3].append(score)
-
 
     ############################################################
     def filter(self, in_tumor_bam, in_normal_bam, outputFilePath):
@@ -395,7 +278,7 @@ class RealignmentFilter:
                 self.set_filter_info(mutation_line_info,0,0,0,0,0,0)
                 continue 
 
-            '''
+
             self.makeTwoReference(chr,start,end,ref,alt,outputFilePath + "/tmp.refalt.fa")
             
             # extract short reads from tumor sequence data around the candidate
@@ -423,20 +306,6 @@ class RealignmentFilter:
             normal_ref, normal_alt, normal_other = self.summarizeRefAlt(outputFilePath + "/tmp.psl")
 
             self.set_filter_info(mutation_line_info, tumor_ref,tumor_alt,tumor_other, normal_ref, normal_alt, normal_other)
-            '''
-
-        # --------------------------------------------------------------------------------------
-        self.makePosFasta(outputFilePath + "/tmp.posalt.fa")
-
-        # alignment alternative sequences to the human reference genome
-        FNULL = open(os.devnull, 'w')
-        subprocess.call(self.blat_cmds + [self.reference_genome, outputFilePath + "/tmp.posalt.fa", outputFilePath + "/tmp.psl"], 
-                        stdout = FNULL, stderr = subprocess.STDOUT)
-        FNULL.close()
-
-        mapAbilityDict = self.summarizeAlt(outputFilePath + "/tmp.psl")
-            
-        self.set_map_ability_info(mapAbilityDict)
 
     logging.info( 'filter end')
 
