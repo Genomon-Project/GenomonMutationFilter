@@ -1,0 +1,108 @@
+#! /usr/bin/env python
+"""
+RealignmentFilter
+
+"""
+from realign.run import *
+import argparse
+
+
+####################
+# top level parser
+parser = argparse.ArgumentParser( description = 'genomon_mutation_filter' )
+
+parser.add_argument("--version", action = "version", version = "GenomonMutationFilter-0.1.0")
+
+subparsers = parser.add_subparsers()
+
+
+####################
+# realignment filter 
+parse_parser = subparsers.add_parser("realignment")
+
+parse_parser.add_argument("targetMutationFile", metavar = "target.vcf", type = str,
+                          help = "the path to the mutation file (vcf or annovar format)")
+
+parse_parser.add_argument("targetTumorBam", metavar = "target_tumor.bam", type = str,
+                          help = "the path to the target tumor bam file")
+
+parse_parser.add_argument("targetNormalBam", metavar = "target_normal.bam", type = str,
+                          help = "the path to the target normal bam file")
+
+parse_parser.add_argument("outputDir", metavar = "output.vcf", type = str,
+                          help = "the path to the output directory")
+
+parse_parser.add_argument("inFasta", metavar = "ref.genome", type = str,
+                          help = "the path to the Reference Genome")
+
+parse_parser.add_argument('-t','--tumor_min_mismatch', metavar = "tumor_min_mismatch", default='0', type=int)
+
+parse_parser.add_argument('-n','--normal_max_mismatch', metavar = "normal_max_mismatch", default='0', type=int)
+
+parse_parser.set_defaults(func = realignment_filter)
+
+
+####################
+# indel filter parse
+parse_parser = subparsers.add_parser("indel")
+
+parse_parser.add_argument("targetMutationFile", metavar = "target.vcf", type = str,
+                          help = "the path to the mutation file (vcf or annovar format)")
+
+parse_parser.add_argument("targeBam", metavar = "target.bam", type = str,
+                          help = "the path to the target  bam file")
+
+parse_parser.add_argument("outputDir", metavar = "output.vcf", type = str,
+                          help = "the path to the output directory")
+
+parse_parser.add_argument('-s','--search_length', metavar = "search_length", default='10', type=int)
+
+parse_parser.add_argument('-d','--min_depth', metavar = "min_depth", default='8', type=int)
+
+parse_parser.add_argument('-m','--min_mismatch', metavar = "min_mismatch", default='0', type=int)
+
+parse_parser.set_defaults(func = indel_filter)
+
+
+####################
+# breakpoint filter parse
+parse_parser = subparsers.add_parser("breakpoint")
+
+parse_parser.add_argument("targetMutationFile", metavar = "target.vcf", type = str,
+                          help = "the path to the mutation file (vcf or annovar format)")
+
+parse_parser.add_argument("targeBam", metavar = "target.bam", type = str,
+                          help = "the path to the target  bam file")
+
+parse_parser.add_argument("outputDir", metavar = "output.vcf", type = str,
+                          help = "the path to the output directory")
+
+parse_parser.add_argument('-d','--max_depth', metavar = "max_depth", default='1000', type=int)
+
+parse_parser.add_argument('-c','--min_clip_size', metavar = "min_clip_size", default='20', type=int)
+
+parse_parser.add_argument('-j','--junc_num_thres', metavar = "junc_num_thres", default='3', type=int)
+
+parse_parser.set_defaults(func = breakpoint_filter)
+
+
+####################
+# simple repeat filter parse
+parse_parser = subparsers.add_parser("simplerepeat")
+
+parse_parser.add_argument("targetMutationFile", metavar = "target.vcf", type = str,
+                          help = "the path to the mutation file (vcf or annovar format)")
+
+parse_parser.add_argument("outputDir", metavar = "output.vcf", type = str,
+                          help = "the path to the output directory")
+
+parse_parser.add_argument("simpleRepeatDB", metavar = "simple_repeat.xxxxx", type = str,
+                          help = "the path to the tabix simple repeat database")
+
+parse_parser.set_defaults(func = simple_repeat_filter)
+
+
+args.func(args)
+
+
+
