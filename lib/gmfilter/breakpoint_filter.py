@@ -15,11 +15,15 @@ class breakpoint_filter:
         self.junc_num_thres = junc_num_thres
 
 
-    ############################################################
+    def write_result_file(self, line, file_handle, dist, max_junc_cnt_p, max_junc_cnt_m):
+        print >> file_handle, (line +"\t"+ str(dist) +"\t"+ str(max_junc_cnt_p) +"\t"+ str(max_junc_cnt_m)) 
+        
+
     def filter(self, in_mutation_file, in_bam, output):
         logging.info( 'filter start')
     
         samfile = pysam.Samfile(in_bam, "rb")
+        hResult = open(output,'w')
 
         chrIndex = 0
         srcfile = open(in_mutation_file,'r')
@@ -46,7 +50,7 @@ class breakpoint_filter:
             max_junc_cnt_m = int(0)
             
             if samfile.count(chr, start, (start+1)) >= self.max_depth:
-                print line +"\t0\t0\t0"
+                self.write_result_file(line, hResult, '---', '---', '---')
                 continue
 
             bp_dict = {}
@@ -113,6 +117,8 @@ class breakpoint_filter:
                 sdist = abs(start - int(max_junc_pos))
                 edist = abs(end   - int(max_junc_pos))
                 dist = sdist if sdist < edist else edist
-                print (line +"\t"+ str(dist) +"\t"+ str(max_junc_cnt_p) +"\t"+ str(max_junc_cnt_m)) 
+                self.write_result_file(line, hResult, dist, max_junc_cnt_p, max_junc_cnt_m)
+
+        hResult.close()
         
                 

@@ -20,9 +20,9 @@ class realignment_filter:
      
         
     ############################################################
-    def makeTwoReference(self, chr,start,end,ref,alt, tmp_dir):
+    def makeTwoReference(self, chr,start,end,ref,alt, output):
 
-        hOUT = open(tmp_dir, 'w')
+        hOUT = open(output, 'w')
         
         seq = ""
         label = ','.join([chr, str(start), str(end), ref, alt])
@@ -48,9 +48,9 @@ class realignment_filter:
 
 
     ############################################################
-    def extractRead(self, bamfile, chr,start,end, tmp_dir):
+    def extractRead(self, bamfile, chr,start,end, output):
 
-        hOUT = open(tmp_dir, 'w')
+        hOUT = open(output, 'w')
 
         for read in bamfile.fetch(chr,start,end):
           
@@ -105,7 +105,7 @@ class realignment_filter:
 
 
     ############################################################
-    def checkSecondBestAlignmentxxxxx(self, align):
+    def checkSecondBestAlignment2(self, align):
 
         # return 1 if there is another alignment whose number of matches if close to the second best alignemt
         if len(align) >= 2:
@@ -123,9 +123,9 @@ class realignment_filter:
         return (0,0)
 
     ############################################################
-    def makeTwoReference(self, chr,start,end,ref,alt, tmp_dir):
+    def makeTwoReference(self, chr,start,end,ref,alt, output):
 
-        hOUT = open(tmp_dir, 'w')
+        hOUT = open(output, 'w')
         
         seq = ""
         label = ','.join([chr, str(start), str(end), ref, alt])
@@ -226,12 +226,9 @@ class realignment_filter:
     ############################################################
     def filter(self, in_tumor_bam, in_normal_bam, output, in_mutation_file):
 
-        tmp_dir = output + '/tmp'
-        if not os.path.isdir(tmp_dir):
-            os.makedirs(tmp_dir)
-
         tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
         normal_samfile = pysam.Samfile(in_normal_bam, "rb")
+        hResult = open(output,'w')
         
         chrIndex = 0
         srcfile = open(in_mutation_file,'r')
@@ -242,6 +239,7 @@ class realignment_filter:
                 break
             chrIndex += 1
         
+        ####
         for line in srcfile:
             line = line.rstrip()
             itemlist = line.split('\t')
@@ -255,34 +253,37 @@ class realignment_filter:
             
             chr = chr.replace('chr', '') 
 
-            self.makeTwoReference(chr,start,end,ref,alt,tmp_dir + "/tmp.refalt.fa")
+            self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
             
             # extract short reads from tumor sequence data around the candidate
-            self.extractRead(tumor_samfile,chr,start,end,tmp_dir + "/tmp.fa")
+            self.extractRead(tumor_samfile,chr,start,end,output + ".tmp.fa")
 
             # alignment tumor short reads to the reference and alternative sequences
             FNULL = open(os.devnull, 'w')
-            subprocess.call(self.blat_cmds + [tmp_dir + "/tmp.refalt.fa", tmp_dir + "/tmp.fa", tmp_dir + "/tmp.psl"], 
+            subprocess.call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
                             stdout = FNULL, stderr = subprocess.STDOUT)
             FNULL.close()
 
             # summarize alignment results
-            tumor_ref, tumor_alt, tumor_other = self.summarizeRefAlt(tmp_dir + "/tmp.psl")
+            tumor_ref, tumor_alt, tumor_other = self.summarizeRefAlt(output + ".tmp.psl")
 
             # extract short reads from normal sequence data around the candidate
-            self.extractRead(normal_samfile,chr,start,end,tmp_dir + "/tmp.fa")
+            self.extractRead(normal_samfile,chr,start,end,output + ".tmp.fa")
 
             # alignment normal short reads to the reference and alternative sequences
             FNULL = open(os.devnull, 'w')
-            subprocess.call(self.blat_cmds + [tmp_dir + "/tmp.refalt.fa", tmp_dir + "/tmp.fa", tmp_dir + "/tmp.psl"], 
+            subprocess.call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
                             stdout = FNULL, stderr = subprocess.STDOUT)
             FNULL.close()
 
             # summarize alignment results
-            normal_ref, normal_alt, normal_other = self.summarizeRefAlt(tmp_dir + "/tmp.psl")
+            normal_ref, normal_alt, normal_other = self.summarizeRefAlt(output + ".tmp.psl")
 
             if(tumor_alt >= self.tumor_min_mismatch and normal_alt <= self.normal_max_mismatch):
-                print (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other)
-                            +"\t"+ str(normal_ref) +"\t"+ str(normal_alt) +"\t"+ str(normal_other))
+                print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other)
+                                        +"\t"+ str(normal_ref) +"\t"+ str(normal_alt) +"\t"+ str(normal_other))
+
+        ####
+        hResult.close()
 
 

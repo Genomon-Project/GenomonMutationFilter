@@ -2,10 +2,8 @@ import sys
 import os
 import re
 import pysam
-import scipy.special
 import argparse
 import logging
-import math
 from auto_vivification import auto_vivification
 
 #
@@ -19,12 +17,16 @@ class indel_filter:
         self.min_mismatch = min_mismatch
         self.target = re.compile( '([\+\-])([0-9]+)([ACGTNacgtn]+)' )
         self.remove_chr = re.compile( '\^.' )
-        
+    
 
-    ############################################################
-    def filter(self, in_mutation_file, in_bam, output_dir):
+    def write_result_file(self, line, file_handle, max_mismatch_count, max_mismatch_rate):
+        print >> file_handle, (line +"\t"+ str(max_mismatch_count) +"\t"+ str(max_mismatch_rate)) 
+
+
+    def filter(self, in_mutation_file, in_bam, output):
 
         samfile = pysam.Samfile(in_bam, "rb")
+        hResult = open(output,'w')
         
         chrIndex = 0
         srcfile = open(in_mutation_file,'r')
@@ -52,7 +54,7 @@ class indel_filter:
             max_mismatch_rate = 0
             
             if (ref == '-' or alt == '-'):
-                print (line +"\t---\t---")
+                self.write_result_file(line, hResult, '---', '---')
                 continue
 
             region = chr +":"+str(max(0, (start - self.search_length))) +"-"+ str(end + self.search_length)
@@ -153,5 +155,8 @@ class indel_filter:
             # print "mmc: " + str(max_mismatch_count)
             # print "mm:  " + str(self.min_mismatch)
             if(max_mismatch_count >= self.min_mismatch):
-                print line +"\t"+ (str(max_mismatch_count)+ "\t" +str(max_mismatch_rate))
+                self.write_result_file(line, hResult, max_mismatch_count, max_mismatch_rate)
+
+        hResult.close()
+
 

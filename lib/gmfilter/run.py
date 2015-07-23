@@ -18,7 +18,7 @@ def run_realignment_filter(arg):
 
     logging.info( 'realignment filter start')
     realignf = realignment_filter(arg.inFasta, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size)
-    realignf.filter(arg.targetTumorBam, arg.targetNormalBam, arg.outputDir, arg.targetMutationFile)
+    realignf.filter(arg.targetTumorBam, arg.targetNormalBam, arg.output, arg.targetMutationFile)
     logging.info( 'realignment filter end')
 
 
@@ -26,7 +26,7 @@ def run_indel_filter(arg):
 
     logging.info( 'indel filter start')
     indelf = indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch)
-    indelf.filter(arg.targetMutationFile, arg.targetBam, arg.outputDir)
+    indelf.filter(arg.targetMutationFile, arg.targetBam, arg.output)
     logging.info( 'indel filter end')
 
 
@@ -34,7 +34,7 @@ def run_breakpoint_filter(arg):
 
     logging.info( 'breakpoint filter start')
     bpf = breakpoint_filter(arg.max_depth, arg.min_clip_size, arg.junc_num_thres)
-    bpf.filter(arg.targetMutationFile, arg.targetBam, arg.outputDir)
+    bpf.filter(arg.targetMutationFile, arg.targetBam, arg.output)
     logging.info( 'breakpoint filter end')
 
 
@@ -42,7 +42,7 @@ def run_simple_repeat_filter(arg):
 
     logging.info( 'simple repeat filter start')
     simplef = simple_repeat_filter(arg.simpleRepeatDB)
-    simplef.filter(arg.targetMutationFile, arg.outputDir)
+    simplef.filter(arg.targetMutationFile, arg.output)
     logging.info( 'simple repeat filter end')
 
 

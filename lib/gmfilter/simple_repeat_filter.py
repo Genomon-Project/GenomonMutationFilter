@@ -14,10 +14,15 @@ class simple_repeat_filter:
         self.simple_repeat_db = simple_repeat_db
 
 
+    def write_result_file(self, line, file_handle, db_pos, db_seq):
+        print >> file_handle, (line + "\t" +db_pos+ "\t" +db_seq)
+        
+
     ############################################################
     def filter(self, in_mutation_file, output):
     
         tb = tabix.open(self.simple_repeat_db)
+        hResult = open(output,'w')
 
         # tabix open
         chrIndex = 0
@@ -53,7 +58,7 @@ class simple_repeat_filter:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 logging.error( ("{0}: {1}:{2}".format( exc_type, fname, exc_tb.tb_lineno) ) )
-                print line + "\t---\t---"
+                self.write_result_file(line, hResult, '---', '---')
                 continue
           
             ####
@@ -61,5 +66,8 @@ class simple_repeat_filter:
             db_seq = ";".join(map(str,sequence_array[0:5]))
             if db_pos == "": db_pos = "---"
             if db_seq == "": db_seq = "---"
-            print line + "\t" +db_pos+ "\t" +db_seq   
+            self.write_result_file(line, hResult, db_pos, db_seq)
+
+        hResult.close()
+
 

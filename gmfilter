@@ -26,8 +26,8 @@ parse_parser.add_argument("targetTumorBam", metavar = "target_tumor.bam", type =
 parse_parser.add_argument("targetNormalBam", metavar = "target_normal.bam", type = str,
                           help = "the path to the target normal bam file")
 
-parse_parser.add_argument("outputDir", metavar = "output.vcf", type = str,
-                          help = "the path to the output directory")
+parse_parser.add_argument("output", metavar = "output.vcf", type = str,
+                          help = "the path to the output file")
 
 parse_parser.add_argument("inFasta", metavar = "ref.genome", type = str,
                           help = "the path to the Reference Genome")
@@ -51,8 +51,8 @@ parse_parser.add_argument("targetMutationFile", metavar = "target.vcf", type = s
 parse_parser.add_argument("targetBam", metavar = "target.bam", type = str,
                           help = "the path to the target  bam file")
 
-parse_parser.add_argument("outputDir", metavar = "output.vcf", type = str,
-                          help = "the path to the output directory")
+parse_parser.add_argument("output", metavar = "output.vcf", type = str,
+                          help = "the path to the output file")
 
 parse_parser.add_argument('-s','--search_length', metavar = "search_length", default='10', type=int)
 
@@ -73,8 +73,8 @@ parse_parser.add_argument("targetMutationFile", metavar = "target.vcf", type = s
 parse_parser.add_argument("targetBam", metavar = "target.bam", type = str,
                           help = "the path to the target  bam file")
 
-parse_parser.add_argument("outputDir", metavar = "output.vcf", type = str,
-                          help = "the path to the output directory")
+parse_parser.add_argument("output", metavar = "output.vcf", type = str,
+                          help = "the path to the output file")
 
 parse_parser.add_argument('-d','--max_depth', metavar = "max_depth", default='1000', type=int)
 
@@ -92,10 +92,10 @@ parse_parser = subparsers.add_parser("simplerepeat")
 parse_parser.add_argument("targetMutationFile", metavar = "target.vcf", type = str,
                           help = "the path to the mutation file (vcf or annovar format)")
 
-parse_parser.add_argument("outputDir", metavar = "output.vcf", type = str,
-                          help = "the path to the output directory")
+parse_parser.add_argument("output", metavar = "output.vcf", type = str,
+                          help = "the path to the output file")
 
-parse_parser.add_argument("simpleRepeatDB", metavar = "simple_repeat.xxxxx", type = str,
+parse_parser.add_argument("simpleRepeatDB", metavar = "simple_repeat_database", type = str,
                           help = "the path to the tabix simple repeat database")
 
 parse_parser.set_defaults(func = run_simple_repeat_filter)
