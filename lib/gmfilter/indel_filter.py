@@ -13,17 +13,16 @@ from auto_vivification import auto_vivification
 #
 class indel_filter:
 
-    def __init__(self, mutationFileInfo, search_length, min_depth, min_mismatch):
-        self.search_length = 
-        self.min_depth = int(10)
-        self.min_mismatch = int(3)
+    def __init__(self, search_length, min_depth, min_mismatch):
+        self.search_length = search_length
+        self.min_depth = min_depth
+        self.min_mismatch = min_mismatch
         self.target = re.compile( '([\+\-])([0-9]+)([ACGTNacgtn]+)' )
         self.remove_chr = re.compile( '\^.' )
         
 
     ############################################################
-    def filter(self, in_mitation_file, in_bam, output_dir):
-        logging.info( 'filter start')
+    def filter(self, in_mutation_file, in_bam, output_dir):
 
         samfile = pysam.Samfile(in_bam, "rb")
         
@@ -47,11 +46,12 @@ class indel_filter:
             ref = itemlist[chrIndex + 3]
             alt = itemlist[chrIndex + 4]
             
+            chr = chr.replace('chr', '') 
+            
             max_mismatch_count = 0
             max_mismatch_rate = 0
             
             if (ref == '-' or alt == '-'):
-                self.set_filter_info(mutation_line_info, max_mismatch_count, max_mismatch_rate)
                 print (line +"\t---\t---")
                 continue
 
@@ -60,7 +60,7 @@ class indel_filter:
             ####
             # print region
             for mpileup in pysam.mpileup( '-BQ', '0', '-d', '10000000', "-r", region, in_bam ):
-                
+
                 #
                 # Prepare mpileup data
                 #
@@ -91,7 +91,7 @@ class indel_filter:
                 # 5th row(read bases),
                 # 6th row(base quality)
                 #
-                indel = AutoVivification()
+                indel = auto_vivification()
 
                 #
                 # Look for deletion/insertion and save info in 'indel' dictionary
@@ -150,10 +150,8 @@ class indel_filter:
                                 max_mismatch_rate  = mismatch_rate
 
             ####
-            self.set_filter_info(mutation_line_info, max_mismatch_count, max_mismatch_rate)
-
+            # print "mmc: " + str(max_mismatch_count)
+            # print "mm:  " + str(self.min_mismatch)
             if(max_mismatch_count >= self.min_mismatch):
                 print line +"\t"+ (str(max_mismatch_count)+ "\t" +str(max_mismatch_rate))
-
-        logging.info( 'filter end')
 

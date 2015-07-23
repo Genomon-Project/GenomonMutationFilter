@@ -38,13 +38,15 @@ class breakpoint_filter:
             chr = itemlist[chrIndex]
             start = (int(itemlist[chrIndex + 1]) - 1)
             end = int(itemlist[chrIndex + 2])
+
+            chr = chr.replace('chr', '') 
             
-            max_junc_pos = ""
+            max_junc_pos = int(0)
             max_junc_cnt_p = int(0)
             max_junc_cnt_m = int(0)
             
             if samfile.count(chr, start, (start+1)) >= self.max_depth:
-                print line +"\t\t0\t0"
+                print line +"\t0\t0\t0"
                 continue
 
             bp_dict = {}
@@ -109,8 +111,8 @@ class breakpoint_filter:
             ####
             if(max_junc_cnt_p + max_junc_cnt_m) >= self.junc_num_thres:
                 sdist = abs(start - int(max_junc_pos))
-                edist = abs(end - int(max_junc_pos))
+                edist = abs(end   - int(max_junc_pos))
                 dist = sdist if sdist < edist else edist
-                print line +"\t"+ str(dist) +"\t"+ str(max_junc_cnt_p) +"\t"+ str(max_junc_cnt_m)) 
+                print (line +"\t"+ str(dist) +"\t"+ str(max_junc_cnt_p) +"\t"+ str(max_junc_cnt_m)) 
         
                 

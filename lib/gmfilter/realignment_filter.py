@@ -10,17 +10,14 @@ import subprocess
 #
 class realignment_filter:
 
-    def __init__(self, referenceGenome, tumor_min_mismatch, normal_max_mismatch):
-
+    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length):
         self.reference_genome = referenceGenome
-        self.window = int(200)
-
+        self.window = search_length
         self.tumor_min_mismatch = tumor_min_mismatch
         self.normal_max_mismatch = normal_max_mismatch
-
         self.complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
         self.blat_cmds = ['/home/ogawaprj/ngs/bin/blat_x86_64/blat', '-fine']
-        
+     
         
     ############################################################
     def makeTwoReference(self, chr,start,end,ref,alt, tmp_dir):

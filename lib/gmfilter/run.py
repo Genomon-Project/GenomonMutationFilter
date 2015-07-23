@@ -8,40 +8,40 @@ import logging
 from realignment_filter import realignment_filter
 from indel_filter import indel_filter
 from breakpoint_filter import breakpoint_filter
-from tabix_db_filter import tabix_db_filter
+from simple_repeat_filter import simple_repeat_filter
 
 
 #
 # Main
 #
-def realignment_filter(arg):
+def run_realignment_filter(arg):
 
     logging.info( 'realignment filter start')
-    realignf = realignment_filter(arg.inFasta, arg.tumor_min_mismatch, arg.normal_max_mismatch)
+    realignf = realignment_filter(arg.inFasta, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size)
     realignf.filter(arg.targetTumorBam, arg.targetNormalBam, arg.outputDir, arg.targetMutationFile)
     logging.info( 'realignment filter end')
 
 
-def indel_filter(arg):
+def run_indel_filter(arg):
 
     logging.info( 'indel filter start')
-    indelf = indel_filter(arg.inFasta, arg.search_length, arg.min_depth, arg.min_mismatch)
+    indelf = indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch)
     indelf.filter(arg.targetMutationFile, arg.targetBam, arg.outputDir)
     logging.info( 'indel filter end')
 
 
-def breakpoint_filter(arg):
+def run_breakpoint_filter(arg):
 
     logging.info( 'breakpoint filter start')
-    bpf = breakpoint_filter(arg.inFasta, arg.search_length, arg.min_depth, arg.min_mismatch)
+    bpf = breakpoint_filter(arg.max_depth, arg.min_clip_size, arg.junc_num_thres)
     bpf.filter(arg.targetMutationFile, arg.targetBam, arg.outputDir)
     logging.info( 'breakpoint filter end')
 
 
-def simple_repeat_filter(arg):
+def run_simple_repeat_filter(arg):
 
     logging.info( 'simple repeat filter start')
-    simplef = tabix_db_filter(arg.simpleRepeatDB)
+    simplef = simple_repeat_filter(arg.simpleRepeatDB)
     simplef.filter(arg.targetMutationFile, arg.outputDir)
     logging.info( 'simple repeat filter end')
 

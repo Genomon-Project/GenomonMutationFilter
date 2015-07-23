@@ -1,10 +1,7 @@
 #! /usr/bin/env python
-"""
-RealignmentFilter
 
-"""
-from realign.run import *
 import argparse
+from gmfilter.run import *
 
 
 ####################
@@ -39,7 +36,9 @@ parse_parser.add_argument('-t','--tumor_min_mismatch', metavar = "tumor_min_mism
 
 parse_parser.add_argument('-n','--normal_max_mismatch', metavar = "normal_max_mismatch", default='0', type=int)
 
-parse_parser.set_defaults(func = realignment_filter)
+parse_parser.add_argument('-w','--window_size', metavar = "window_size", default='200', type=int)
+
+parse_parser.set_defaults(func = run_realignment_filter)
 
 
 ####################
@@ -49,7 +48,7 @@ parse_parser = subparsers.add_parser("indel")
 parse_parser.add_argument("targetMutationFile", metavar = "target.vcf", type = str,
                           help = "the path to the mutation file (vcf or annovar format)")
 
-parse_parser.add_argument("targeBam", metavar = "target.bam", type = str,
+parse_parser.add_argument("targetBam", metavar = "target.bam", type = str,
                           help = "the path to the target  bam file")
 
 parse_parser.add_argument("outputDir", metavar = "output.vcf", type = str,
@@ -61,7 +60,7 @@ parse_parser.add_argument('-d','--min_depth', metavar = "min_depth", default='8'
 
 parse_parser.add_argument('-m','--min_mismatch', metavar = "min_mismatch", default='0', type=int)
 
-parse_parser.set_defaults(func = indel_filter)
+parse_parser.set_defaults(func = run_indel_filter)
 
 
 ####################
@@ -71,7 +70,7 @@ parse_parser = subparsers.add_parser("breakpoint")
 parse_parser.add_argument("targetMutationFile", metavar = "target.vcf", type = str,
                           help = "the path to the mutation file (vcf or annovar format)")
 
-parse_parser.add_argument("targeBam", metavar = "target.bam", type = str,
+parse_parser.add_argument("targetBam", metavar = "target.bam", type = str,
                           help = "the path to the target  bam file")
 
 parse_parser.add_argument("outputDir", metavar = "output.vcf", type = str,
@@ -81,9 +80,9 @@ parse_parser.add_argument('-d','--max_depth', metavar = "max_depth", default='10
 
 parse_parser.add_argument('-c','--min_clip_size', metavar = "min_clip_size", default='20', type=int)
 
-parse_parser.add_argument('-j','--junc_num_thres', metavar = "junc_num_thres", default='3', type=int)
+parse_parser.add_argument('-j','--junc_num_thres', metavar = "junc_num_thres", default='0', type=int)
 
-parse_parser.set_defaults(func = breakpoint_filter)
+parse_parser.set_defaults(func = run_breakpoint_filter)
 
 
 ####################
@@ -99,8 +98,11 @@ parse_parser.add_argument("outputDir", metavar = "output.vcf", type = str,
 parse_parser.add_argument("simpleRepeatDB", metavar = "simple_repeat.xxxxx", type = str,
                           help = "the path to the tabix simple repeat database")
 
-parse_parser.set_defaults(func = simple_repeat_filter)
+parse_parser.set_defaults(func = run_simple_repeat_filter)
 
+
+####################
+args = parser.parse_args()
 
 args.func(args)
 
