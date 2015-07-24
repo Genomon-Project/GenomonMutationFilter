@@ -25,7 +25,7 @@ def run_realignment_filter(arg):
 def run_indel_filter(arg):
 
     logging.info( 'indel filter start')
-    indelf = indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch)
+    indelf = indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch, arg.af_thres, arg.neighbor)
     indelf.filter(arg.targetMutationFile, arg.targetBam, arg.output)
     logging.info( 'indel filter end')
 

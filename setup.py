@@ -10,7 +10,7 @@ setup(name='genomon_mutation_filter',
     author_email='kchiba@hgc.jp',
     url='https://github.com/ken0-1n/GenomonMutationFilter',
     package_dir = {'': 'lib'},
-    packages=['gmfilter'],
-    scripts=['gmfilter'],
+    packages=['mutfilter'],
+    scripts=['mutfilter'],
     license='GPL-3'
 )

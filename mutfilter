@@ -54,11 +54,15 @@ parse_parser.add_argument("targetBam", metavar = "target.bam", type = str,
 parse_parser.add_argument("output", metavar = "output.vcf", type = str,
                           help = "the path to the output file")
 
-parse_parser.add_argument('-s','--search_length', metavar = "search_length", default='10', type=int)
+parse_parser.add_argument('-s','--search_length', metavar = "search_length", default='20', type=int)
+
+parse_parser.add_argument('-n','--neighbor', metavar = "neighbor", default='5', type=int)
 
 parse_parser.add_argument('-d','--min_depth', metavar = "min_depth", default='8', type=int)
 
-parse_parser.add_argument('-m','--min_mismatch', metavar = "min_mismatch", default='0', type=int)
+parse_parser.add_argument('-m','--min_mismatch', metavar = "min_mismatch", default='1000', type=int)
+
+parse_parser.add_argument('-a','--af_thres', metavar = "allele_frequency_thres", default='1', type=float)
 
 parse_parser.set_defaults(func = run_indel_filter)
 

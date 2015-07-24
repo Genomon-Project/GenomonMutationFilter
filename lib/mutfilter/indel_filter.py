@@ -11,10 +11,12 @@ from auto_vivification import auto_vivification
 #
 class indel_filter:
 
-    def __init__(self, search_length, min_depth, min_mismatch):
+    def __init__(self, search_length, min_depth, min_mismatch, af_thres, neighbor):
         self.search_length = search_length
         self.min_depth = min_depth
         self.min_mismatch = min_mismatch
+        self.af_thres = af_thres
+        self.neighbor = neighbor
         self.target = re.compile( '([\+\-])([0-9]+)([ACGTNacgtn]+)' )
         self.remove_chr = re.compile( '\^.' )
     
@@ -53,15 +55,15 @@ class indel_filter:
             max_mismatch_count = 0
             max_mismatch_rate = 0
             
-            if (ref == '-' or alt == '-'):
-                self.write_result_file(line, hResult, '---', '---')
-                continue
-
-            region = chr +":"+str(max(0, (start - self.search_length))) +"-"+ str(end + self.search_length)
+            # if (ref == '-' or alt == '-'):
+            #     self.write_result_file(line, hResult, '---', '---')
+            #     continue
+            region = chr +":"+str(max(0, (start - self.search_length + 1))) +"-"+ str(end + self.search_length)
 
             ####
             # print region
             for mpileup in pysam.mpileup( '-BQ', '0', '-d', '10000000', "-r", region, in_bam ):
+                # print mpileup.rstrip()
 
                 #
                 # Prepare mpileup data
@@ -143,18 +145,34 @@ class indel_filter:
                 for type in ( '+', '-' ):
                     if type in indel:
                         for key in indel[ type ].keys():
-
+                            start_pos = mp_list[ 1 ]
+                            
                             mismatch_count = ( indel[ type ][ key ][ '-' ] + indel[ type ][ key ][ '+' ])
-                            mismatch_rate = (mismatch_count / int(depth))
+                            mismatch_rate = (float(mismatch_count) / float(depth))
 
-                            if mismatch_count >= max_mismatch_rate:
-                                max_mismatch_count = mismatch_count
-                                max_mismatch_rate  = mismatch_rate
+                            if mismatch_count >= max_mismatch_count:
+                                start_pos = int(start_pos)
+                                end_pos   = int(start_pos)
+
+                                if (type == '-'):
+                                    start_pos = int(start_pos) + 1
+                                    end_pos = int(start_pos) + len((key.split('\t'))[3]) - 1 
+
+                                # print "m: " + str(start_pos) +"-"+ str(end_pos)
+                                # print "o: " + str(start) +"-"+ str(end)
+                                # print mismatch_count
+                                # print mismatch_rate
+
+                                if ((start_pos - self.neighbor <= int(start) + 1 and int(start) + 1 <= self.neighbor + end_pos) 
+                                  or(start_pos - self.neighbor <= int(end)      and  int(end)       <= self.neighbor + end_pos)): 
+
+                                    max_mismatch_count = mismatch_count
+                                    max_mismatch_rate  = mismatch_rate
 
             ####
             # print "mmc: " + str(max_mismatch_count)
             # print "mm:  " + str(self.min_mismatch)
-            if(max_mismatch_count >= self.min_mismatch):
+            if(max_mismatch_count <= self.min_mismatch or max_mismatch_rate <= self.af_thres):
                 self.write_result_file(line, hResult, max_mismatch_count, max_mismatch_rate)
 
         hResult.close()
