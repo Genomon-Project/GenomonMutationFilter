@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 import argparse
-from gmfilter.run import *
+from mutfilter.run import *
 
 
 ####################
@@ -29,12 +29,17 @@ parse_parser.add_argument("targetNormalBam", metavar = "target_normal.bam", type
 parse_parser.add_argument("output", metavar = "output.vcf", type = str,
                           help = "the path to the output file")
 
-parse_parser.add_argument("inFasta", metavar = "ref.genome", type = str,
+parse_parser.add_argument("inFasta", metavar = "ref_genome", type = str,
                           help = "the path to the Reference Genome")
+
+parse_parser.add_argument("blatPath", metavar = "blat_path", type = str,
+                          help = "the path to the blat")
 
 parse_parser.add_argument('-t','--tumor_min_mismatch', metavar = "tumor_min_mismatch", default='0', type=int)
 
 parse_parser.add_argument('-n','--normal_max_mismatch', metavar = "normal_max_mismatch", default='0', type=int)
+
+parse_parser.add_argument('-s','--min_score_difference', metavar = "min_score_difference", default='0', type=int)
 
 parse_parser.add_argument('-w','--window_size', metavar = "window_size", default='200', type=int)
 
@@ -54,9 +59,11 @@ parse_parser.add_argument("targetBam", metavar = "target.bam", type = str,
 parse_parser.add_argument("output", metavar = "output.vcf", type = str,
                           help = "the path to the output file")
 
-parse_parser.add_argument('-s','--search_length', metavar = "search_length", default='20', type=int)
+parse_parser.add_argument('-s','--search_length', metavar = "search_length", default='25', type=int)
 
 parse_parser.add_argument('-n','--neighbor', metavar = "neighbor", default='5', type=int)
+
+parse_parser.add_argument('-b','--base_qual', metavar = "base_qual_thres", default='20', type=int)
 
 parse_parser.add_argument('-d','--min_depth', metavar = "min_depth", default='8', type=int)
 
