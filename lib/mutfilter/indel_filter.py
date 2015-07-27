@@ -11,11 +11,12 @@ from auto_vivification import auto_vivification
 #
 class indel_filter:
 
-    def __init__(self, search_length, min_depth, min_mismatch, af_thres, neighbor):
+    def __init__(self, search_length, min_depth, min_mismatch, af_thres, base_qual_thres, neighbor):
         self.search_length = search_length
         self.min_depth = min_depth
         self.min_mismatch = min_mismatch
         self.af_thres = af_thres
+        self.base_qual_thres = str(base_qual_thres)
         self.neighbor = neighbor
         self.target = re.compile( '([\+\-])([0-9]+)([ACGTNacgtn]+)' )
         self.remove_chr = re.compile( '\^.' )
@@ -28,7 +29,6 @@ class indel_filter:
     def filter(self, in_mutation_file, in_bam, output):
 
         samfile = pysam.Samfile(in_bam, "rb")
-        hResult = open(output,'w')
         
         chrIndex = 0
         srcfile = open(in_mutation_file,'r')
@@ -39,6 +39,12 @@ class indel_filter:
                 break
             chrIndex += 1
         
+        hResult = open(output,'w')
+        
+        # print header
+        print >> hResult, (header.rstrip('\n')
+                       + "\tmismatch_count\tmismatch_rate")
+
         for line in srcfile:
             line = line.rstrip()
             itemlist = line.split('\t')
@@ -62,7 +68,7 @@ class indel_filter:
 
             ####
             # print region
-            for mpileup in pysam.mpileup( '-BQ', '0', '-d', '10000000', "-r", region, in_bam ):
+            for mpileup in pysam.mpileup( '-BQ', '0', '-d', '10000000', "-q", self.base_qual_thres, "-r", region, in_bam ):
                 # print mpileup.rstrip()
 
                 #
@@ -150,7 +156,7 @@ class indel_filter:
                             mismatch_count = ( indel[ type ][ key ][ '-' ] + indel[ type ][ key ][ '+' ])
                             mismatch_rate = (float(mismatch_count) / float(depth))
 
-                            if mismatch_count >= max_mismatch_count:
+                            if mismatch_rate >= max_mismatch_rate:
                                 start_pos = int(start_pos)
                                 end_pos   = int(start_pos)
 

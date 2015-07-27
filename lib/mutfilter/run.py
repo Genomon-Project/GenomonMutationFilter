@@ -17,7 +17,7 @@ from simple_repeat_filter import simple_repeat_filter
 def run_realignment_filter(arg):
 
     logging.info( 'realignment filter start')
-    realignf = realignment_filter(arg.inFasta, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size)
+    realignf = realignment_filter(arg.inFasta, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size, arg.min_score_difference, arg.blatPath)
     realignf.filter(arg.targetTumorBam, arg.targetNormalBam, arg.output, arg.targetMutationFile)
     logging.info( 'realignment filter end')
 
@@ -25,7 +25,7 @@ def run_realignment_filter(arg):
 def run_indel_filter(arg):
 
     logging.info( 'indel filter start')
-    indelf = indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch, arg.af_thres, arg.neighbor)
+    indelf = indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch, arg.af_thres, arg.base_qual, arg.neighbor)
     indelf.filter(arg.targetMutationFile, arg.targetBam, arg.output)
     logging.info( 'indel filter end')
 

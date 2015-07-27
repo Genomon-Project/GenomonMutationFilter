@@ -10,13 +10,14 @@ import subprocess
 #
 class realignment_filter:
 
-    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length):
+    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, min_score_difference, blat):
         self.reference_genome = referenceGenome
         self.window = search_length
+        self.min_score_difference = min_score_difference
         self.tumor_min_mismatch = tumor_min_mismatch
         self.normal_max_mismatch = normal_max_mismatch
+        self.blat_cmds = [blat, '-fine']
         self.complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
-        self.blat_cmds = ['/home/ogawaprj/ngs/bin/blat_x86_64/blat', '-fine']
      
         
     ############################################################
@@ -91,7 +92,7 @@ class realignment_filter:
 
 
     ############################################################
-    def checkSecondBestAlignment(self, align1, align2):
+    def checkSecondBestAlignmentOriginal(self, align1, align2):
 
         align1tmp = list(align1)
         align1tmp.extend(align2)
@@ -99,18 +100,19 @@ class realignment_filter:
         if len(align1tmp) == 1:
               return 1
         align1tmp.sort(key=lambda x:x[0],reverse=True)
-        if len(align1tmp) == 3 and (align1tmp[1][0] - align1tmp[2][0]) <= 5:
+        # if len(align1tmp) == 3 and (align1tmp[1][0] - align1tmp[2][0]) <= 5:
+        if len(align1tmp) >= 3 and (align1tmp[1][0] - align1tmp[2][0]) <= 5:
             return 1
         return 0
 
 
     ############################################################
-    def checkSecondBestAlignment2(self, align):
+    def checkSecondBestAlignment(self, align):
 
         # return 1 if there is another alignment whose number of matches if close to the second best alignemt
         if len(align) >= 2:
             align.sort(key=lambda x:x[0],reverse=True)
-            if (abs(align[0][0] - align[1][0]) <= 5):
+            if (abs(align[0][0] - align[1][0]) <= range_of_close_best_alignment):
                 return 1
         return 0
 
@@ -173,17 +175,19 @@ class realignment_filter:
             if F[0].isdigit() == False: continue
 
             # remove the read pair num info ("/1", "/2") 
-            F[9] = F[9][0:-2]
+            # F[9] = F[9][0:-2]
             if tempID != F[9]:
                 if tempID != "":
                 
                     ####
-                    if (self.checkSecondBestAlignment(tempAlt,tempRef) == 0):
+                    if (self.checkSecondBestAlignmentOriginal(tempAlt,tempRef) == 0):
+                    # if (self.checkSecondBestAlignment(tempAlt) == 0 and self.checkSecondBestAlignment(tempRef) == 0):
                         tempAltScore, tempAltNM = self.getScore(tempAlt)
                         tempRefScore, tempRefNM = self.getScore(tempRef)
-                        if tempAltScore == tempRefScore: numOther.append(tempID)
-                        elif tempAltScore >  tempRefScore: numAlt.append(tempID)
-                        elif tempAltScore <  tempRefScore: numRef.append(tempID)
+                        # print str(tempRefScore) +" " + str(tempAltScore)
+                        if tempAltScore == tempRefScore: numOther.append(tempID[0:-2])
+                        elif tempAltScore >  tempRefScore: numAlt.append(tempID[0:-2])
+                        elif tempAltScore <  tempRefScore: numRef.append(tempID[0:-2])
 
                 tempID = F[9]
                 tempAlt = []
@@ -212,13 +216,14 @@ class realignment_filter:
         hIN.close()
 
         ####
-        if (self.checkSecondBestAlignment(tempAlt,tempRef) == 0):
+        if (self.checkSecondBestAlignmentOriginal(tempAlt,tempRef) == 0):
+        # if (self.checkSecondBestAlignment(tempAlt) == 0 and self.checkSecondBestAlignment(tempRef) == 0):
             tempAltScore, tempAltNM = self.getScore(tempAlt)
             tempRefScore, tempRefNM = self.getScore(tempRef)
-            if tempAltScore == tempRefScore: numOther.append(tempID)
-            elif tempAltScore >  tempRefScore: numAlt.append(tempID)
-            elif tempAltScore <  tempRefScore: numRef.append(tempID)
-
+            # print str(tempRefScore) +" " + str(tempAltScore)
+            if tempAltScore == tempRefScore: numOther.append(tempID[0:-2])
+            elif tempAltScore >  tempRefScore: numAlt.append(tempID[0:-2])
+            elif tempAltScore <  tempRefScore: numRef.append(tempID[0:-2])
 
         return([len(set(numRef)), len(set(numAlt)), len(set(numOther))])
     
@@ -228,8 +233,7 @@ class realignment_filter:
 
         tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
         normal_samfile = pysam.Samfile(in_normal_bam, "rb")
-        hResult = open(output,'w')
-        
+
         chrIndex = 0
         srcfile = open(in_mutation_file,'r')
         header = srcfile.readline()  
@@ -239,6 +243,13 @@ class realignment_filter:
                 break
             chrIndex += 1
         
+        hResult = open(output,'w')
+
+        # print header
+        print >> hResult, (header.rstrip('\n')
+                       + "\treadPairNum_tumor\tvariantPairNum_tumor\totherPairNum_tumor"
+                       + "\treadPairNum_normal\tvariantPairNum_normal\totherPairNum_normal")
+
         ####
         for line in srcfile:
             line = line.rstrip()
