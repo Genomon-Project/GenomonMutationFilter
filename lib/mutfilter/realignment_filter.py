@@ -10,10 +10,10 @@ import subprocess
 #
 class realignment_filter:
 
-    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, min_score_difference, blat):
+    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat):
         self.reference_genome = referenceGenome
         self.window = search_length
-        self.min_score_difference = min_score_difference
+        self.score_difference = score_difference
         self.tumor_min_mismatch = tumor_min_mismatch
         self.normal_max_mismatch = normal_max_mismatch
         self.blat_cmds = [blat, '-fine']
@@ -100,8 +100,8 @@ class realignment_filter:
         if len(align1tmp) == 1:
               return 1
         align1tmp.sort(key=lambda x:x[0],reverse=True)
-        # if len(align1tmp) == 3 and (align1tmp[1][0] - align1tmp[2][0]) <= 5:
-        if len(align1tmp) >= 3 and (align1tmp[1][0] - align1tmp[2][0]) <= 5:
+        # if len(align1tmp) == 3 and (align1tmp[1][0] - align1tmp[2][0]) <= self.score_difference:
+        if len(align1tmp) >= 3 and (align1tmp[1][0] - align1tmp[2][0]) <= self.score_difference:
             return 1
         return 0
 
@@ -122,7 +122,7 @@ class realignment_filter:
         if len(align) >= 1:
             align.sort(key=lambda x:x[0],reverse=True)
             return (align[0][0], align[0][1])
-        return (0,0)
+        return (-1000,0)
 
     ############################################################
     def makeTwoReference(self, chr,start,end,ref,alt, output):
@@ -271,20 +271,20 @@ class realignment_filter:
 
             # alignment tumor short reads to the reference and alternative sequences
             FNULL = open(os.devnull, 'w')
-            subprocess.call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
-                            stdout = FNULL, stderr = subprocess.STDOUT)
+            retcode = subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
+                                            stdout = FNULL, stderr = subprocess.STDOUT)
             FNULL.close()
 
             # summarize alignment results
             tumor_ref, tumor_alt, tumor_other = self.summarizeRefAlt(output + ".tmp.psl")
-
+            
             # extract short reads from normal sequence data around the candidate
             self.extractRead(normal_samfile,chr,start,end,output + ".tmp.fa")
 
             # alignment normal short reads to the reference and alternative sequences
             FNULL = open(os.devnull, 'w')
-            subprocess.call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
-                            stdout = FNULL, stderr = subprocess.STDOUT)
+            subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
+                                  stdout = FNULL, stderr = subprocess.STDOUT)
             FNULL.close()
 
             # summarize alignment results

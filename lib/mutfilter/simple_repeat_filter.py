@@ -22,7 +22,6 @@ class simple_repeat_filter:
     def filter(self, in_mutation_file, output):
     
         tb = tabix.open(self.simple_repeat_db)
-        hResult = open(output,'w')
 
         # tabix open
         chrIndex = 0
@@ -34,6 +33,11 @@ class simple_repeat_filter:
                 break
             chrIndex += 1
         
+        hResult = open(output,'w')
+
+        print >> hResult, (header.rstrip('\n')
+                       + "\tsimple_repeat_pos\tsimple_repeat_seq")
+
         for line in srcfile:
             line = line.rstrip()
             itemlist = line.split('\t')

@@ -17,7 +17,7 @@ from simple_repeat_filter import simple_repeat_filter
 def run_realignment_filter(arg):
 
     logging.info( 'realignment filter start')
-    realignf = realignment_filter(arg.inFasta, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size, arg.min_score_difference, arg.blatPath)
+    realignf = realignment_filter(arg.inFasta, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size, arg.score_difference, arg.blatPath)
     realignf.filter(arg.targetTumorBam, arg.targetNormalBam, arg.output, arg.targetMutationFile)
     logging.info( 'realignment filter end')
 
@@ -33,7 +33,7 @@ def run_indel_filter(arg):
 def run_breakpoint_filter(arg):
 
     logging.info( 'breakpoint filter start')
-    bpf = breakpoint_filter(arg.max_depth, arg.min_clip_size, arg.junc_num_thres)
+    bpf = breakpoint_filter(arg.max_depth, arg.min_clip_size, arg.junc_num_thres, arg.mapq_thres)
     bpf.filter(arg.targetMutationFile, arg.targetBam, arg.output)
     logging.info( 'breakpoint filter end')
 

@@ -9,21 +9,20 @@ import logging
 #
 class breakpoint_filter:
 
-    def __init__(self, max_depth, min_clip_size, junc_num_thres):
+    def __init__(self, max_depth, min_clip_size, junc_num_thres, mapq_thres):
         self.max_depth = max_depth
         self.min_clip_size = min_clip_size
         self.junc_num_thres = junc_num_thres
+        self.mapq_thres = mapq_thres
 
 
-    def write_result_file(self, line, file_handle, dist, max_junc_cnt_p, max_junc_cnt_m):
-        print >> file_handle, (line +"\t"+ str(dist) +"\t"+ str(max_junc_cnt_p) +"\t"+ str(max_junc_cnt_m)) 
+    def write_result_file(self, line, file_handle, dist, max_junc_cnt):
+        print >> file_handle, (line +"\t"+ str(max_junc_cnt) +"\t"+str(dist)) 
         
 
     def filter(self, in_mutation_file, in_bam, output):
-        logging.info( 'filter start')
     
         samfile = pysam.Samfile(in_bam, "rb")
-        hResult = open(output,'w')
 
         chrIndex = 0
         srcfile = open(in_mutation_file,'r')
@@ -34,6 +33,11 @@ class breakpoint_filter:
                 break
             chrIndex += 1
         
+        hResult = open(output,'w')
+        
+        print >> hResult, (header.rstrip('\n')
+                       + "\tmismatch_count\tdistance_from_breakpoint")
+
         for line in srcfile:
             line = line.rstrip()
             itemlist = line.split('\t')
@@ -50,7 +54,7 @@ class breakpoint_filter:
             max_junc_cnt_m = int(0)
             
             if samfile.count(chr, start, (start+1)) >= self.max_depth:
-                self.write_result_file(line, hResult, '---', '---', '---')
+                self.write_result_file(line, hResult, '---', '---')
                 continue
 
             bp_dict = {}
@@ -73,6 +77,9 @@ class breakpoint_filter:
                 # no clipping
                 if len(read.cigar) == 1: continue
                 
+                # skip low mapping quality
+                if read.mapq < self.mapq_thres: continue
+
                 left_clipping = (read.cigar[0][1] if read.cigar[0][0] in [4, 5] else 0)
                 right_clipping = (read.cigar[len(read.cigar) - 1][1] if read.cigar[len(read.cigar) - 1][0] in [4, 5] else 0)
 
@@ -93,6 +100,7 @@ class breakpoint_filter:
                 if left_clipping >= self.min_clip_size:
 
                     juncPos_current = str(int(read.pos + 1))
+                    juncPos_current = str(read.pos)
                     key = juncPos_current +"\tL"
 
                     if key not in bp_dict:
@@ -114,10 +122,12 @@ class breakpoint_filter:
 
             ####
             if(max_junc_cnt_p + max_junc_cnt_m) >= self.junc_num_thres:
-                sdist = abs(start - int(max_junc_pos))
-                edist = abs(end   - int(max_junc_pos))
-                dist = sdist if sdist < edist else edist
-                self.write_result_file(line, hResult, dist, max_junc_cnt_p, max_junc_cnt_m)
+                dist = 0
+                if (max_junc_cnt_p + max_junc_cnt_m) > 0:
+                    sdist = abs(start - int(max_junc_pos))
+                    edist = abs(end   - int(max_junc_pos))
+                    dist = sdist if sdist < edist else edist
+                self.write_result_file(line, hResult, dist, (max_junc_cnt_p + max_junc_cnt_m))
 
         hResult.close()
         
