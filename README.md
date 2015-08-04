@@ -40,6 +40,6 @@ mutfilter breakpoint [-h] [-d max_depth] [-c min_clip_size]
 ```
 
 ```
-usage: mutfilter simplerepeat [-h]
-                              target.anno output.anno simple_repeat_database
+mutfilter simplerepeat [-h]
+                            target.anno output.anno simple_repeat_database
 ```
