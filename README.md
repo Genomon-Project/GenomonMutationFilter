@@ -4,9 +4,9 @@ GenomonMutationFilter is a software package for filtering false poistive somatic
 
 ## Dependency
 
-```
 Python (>= 2.7), pysam, pytabix packages
-```
+* [blat](http://genome.ucsc.edu/)
+
 
 ## Install
 
@@ -23,6 +23,13 @@ tar xjvf tabix-0.2.6.tar.bz2
 cd tabix-0.2.6
 make
 ```
+
+## Preparation
+
+  **target somatic mutation candidats**: the somatic mutation candidates (should be .tsv or .vcf format).  
+  **target tumor bam**: the indexed bam file of the target tumor sample.  
+  **target normal bam**: the indexed bam file of the target normal sample.  
+
 
 ## Run
 
