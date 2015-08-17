@@ -9,11 +9,12 @@ import logging
 #
 class breakpoint_filter:
 
-    def __init__(self, max_depth, min_clip_size, junc_num_thres, mapq_thres):
+    def __init__(self, max_depth, min_clip_size, junc_num_thres, mapq_thres, header_flag):
         self.max_depth = max_depth
         self.min_clip_size = min_clip_size
         self.junc_num_thres = junc_num_thres
         self.mapq_thres = mapq_thres
+        self.header_flag = header_flag
 
 
     def write_result_file(self, line, file_handle, dist, max_junc_cnt):
@@ -24,31 +25,34 @@ class breakpoint_filter:
     
         samfile = pysam.Samfile(in_bam, "rb")
 
-        chrIndex = 0
         srcfile = open(in_mutation_file,'r')
-        header = srcfile.readline()  
-        headerlist = header.split('\t')
-        for colname in headerlist:
-            if (colname == 'Chr'): 
-                break
-            chrIndex += 1
+        header = ""
+        if self.header_flag:
+            header = srcfile.readline().rstrip('\n')  
         
+        else: # no header line
+            line = srcfile.readline().rstrip()
+            column_len = len(line.split('\t'))
+            srcfile.close()
+            for num in range (2, column_len):
+                header = header + "\t"
+            srcfile = open(in_mutation_file,'r')
+
         hResult = open(output,'w')
         
-        print >> hResult, (header.rstrip('\n')
-                       + "\tmismatch_count\tdistance_from_breakpoint")
+        # print header
+        newheader = "mismatch_count\tdistance_from_breakpoint"
+        print >> hResult, (header +"\t"+ newheader)
 
         for line in srcfile:
             line = line.rstrip()
             itemlist = line.split('\t')
     
             # input file is annovar format (not zero-based number)
-            chr = itemlist[chrIndex]
-            start = (int(itemlist[chrIndex + 1]) - 1)
-            end = int(itemlist[chrIndex + 2])
+            chr = itemlist[0]
+            start = (int(itemlist[1]) - 1)
+            end = int(itemlist[2])
 
-            chr = chr.replace('chr', '') 
-            
             max_junc_pos = int(0)
             max_junc_cnt_p = int(0)
             max_junc_cnt_m = int(0)
@@ -129,6 +133,8 @@ class breakpoint_filter:
                     dist = sdist if sdist < edist else edist
                 self.write_result_file(line, hResult, dist, (max_junc_cnt_p + max_junc_cnt_m))
 
+        ####
         hResult.close()
+        srcfile.close()
         
                 

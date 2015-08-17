@@ -10,7 +10,7 @@ import subprocess
 #
 class realignment_filter:
 
-    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat):
+    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag):
         self.reference_genome = referenceGenome
         self.window = search_length
         self.score_difference = score_difference
@@ -18,6 +18,7 @@ class realignment_filter:
         self.normal_max_mismatch = normal_max_mismatch
         self.blat_cmds = [blat, '-fine']
         self.complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
+        self.header_flag = header_flag
      
         
     ############################################################
@@ -234,36 +235,38 @@ class realignment_filter:
         tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
         normal_samfile = pysam.Samfile(in_normal_bam, "rb")
 
-        chrIndex = 0
         srcfile = open(in_mutation_file,'r')
-        header = srcfile.readline()  
-        headerlist = header.split('\t')
-        for colname in headerlist:
-            if (colname == 'Chr'): 
-                break
-            chrIndex += 1
+        header = ""
+        if self.header_flag:
+            header = srcfile.readline().rstrip('\n')  
+        
+        else: # no header line
+            line = srcfile.readline().rstrip()
+            column_len = len(line.split('\t'))
+            srcfile.close()
+            for num in range (2, column_len):
+                header = header + "\t"
+            srcfile = open(in_mutation_file,'r')
         
         hResult = open(output,'w')
 
         # print header
-        print >> hResult, (header.rstrip('\n')
-                       + "\treadPairNum_tumor\tvariantPairNum_tumor\totherPairNum_tumor"
-                       + "\treadPairNum_normal\tvariantPairNum_normal\totherPairNum_normal")
+        newheader = ("readPairNum_tumor\tvariantPairNum_tumor\totherPairNum_tumor"
+                + "\treadPairNum_normal\tvariantPairNum_normal\totherPairNum_normal")
+        print >> hResult, (header +"\t"+ newheader)
 
         ####
         for line in srcfile:
             line = line.rstrip()
             itemlist = line.split('\t')
     
-            # input file is annovar format (not zero-based number)
-            chr = itemlist[chrIndex]
-            start = (int(itemlist[chrIndex + 1]) - 1)
-            end = int(itemlist[chrIndex + 2])
-            ref = itemlist[chrIndex + 3]
-            alt = itemlist[chrIndex + 4]
+            # annovar input file (not zero-based number)
+            chr = itemlist[0]
+            start = (int(itemlist[1]) - 1)
+            end = int(itemlist[2])
+            ref = itemlist[3]
+            alt = itemlist[4]
             
-            chr = chr.replace('chr', '') 
-
             self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
             
             # extract short reads from tumor sequence data around the candidate
@@ -296,5 +299,6 @@ class realignment_filter:
 
         ####
         hResult.close()
+        srcfile.close()
 
 

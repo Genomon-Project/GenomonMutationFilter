@@ -11,7 +11,7 @@ from auto_vivification import auto_vivification
 #
 class indel_filter:
 
-    def __init__(self, search_length, min_depth, min_mismatch, af_thres, base_qual_thres, neighbor):
+    def __init__(self, search_length, min_depth, min_mismatch, af_thres, base_qual_thres, neighbor, header_flag):
         self.search_length = search_length
         self.min_depth = min_depth
         self.min_mismatch = min_mismatch
@@ -20,6 +20,7 @@ class indel_filter:
         self.neighbor = neighbor
         self.target = re.compile( '([\+\-])([0-9]+)([ACGTNacgtn]+)' )
         self.remove_chr = re.compile( '\^.' )
+        self.header_flag = header_flag
     
 
     def write_result_file(self, line, file_handle, max_mismatch_count, max_mismatch_rate):
@@ -30,33 +31,35 @@ class indel_filter:
 
         samfile = pysam.Samfile(in_bam, "rb")
         
-        chrIndex = 0
         srcfile = open(in_mutation_file,'r')
-        header = srcfile.readline()  
-        headerlist = header.split('\t')
-        for colname in headerlist:
-            if (colname == 'Chr'): 
-                break
-            chrIndex += 1
+        header = ""
+        if self.header_flag:
+            header = srcfile.readline().rstrip('\n')  
+        
+        else: # no header line
+            line = srcfile.readline().rstrip()
+            column_len = len(line.split('\t'))
+            srcfile.close()
+            for num in range (2, column_len):
+                header = header + "\t"
+            srcfile = open(in_mutation_file,'r')
         
         hResult = open(output,'w')
-        
+
         # print header
-        print >> hResult, (header.rstrip('\n')
-                       + "\tmismatch_count\tmismatch_rate")
+        newheader = "tmismatch_count\tmismatch_rate"
+        print >> hResult, (header +"\t"+ newheader)
 
         for line in srcfile:
             line = line.rstrip()
             itemlist = line.split('\t')
     
             # input file is annovar format (not zero-based number)
-            chr = itemlist[chrIndex]
-            start = (int(itemlist[chrIndex + 1]) - 1)
-            end = int(itemlist[chrIndex + 2])
-            ref = itemlist[chrIndex + 3]
-            alt = itemlist[chrIndex + 4]
-            
-            chr = chr.replace('chr', '') 
+            chr = itemlist[0]
+            start = (int(itemlist[1]) - 1)
+            end = int(itemlist[2])
+            ref = itemlist[3]
+            alt = itemlist[4]
             
             max_mismatch_count = 0
             max_mismatch_rate = 0
@@ -181,6 +184,8 @@ class indel_filter:
             if(max_mismatch_count <= self.min_mismatch or max_mismatch_rate <= self.af_thres):
                 self.write_result_file(line, hResult, max_mismatch_count, max_mismatch_rate)
 
+        ####
         hResult.close()
+        srcfile.close()
 
 

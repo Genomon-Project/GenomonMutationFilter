@@ -10,8 +10,9 @@ import logging
 class simple_repeat_filter:
 
 
-    def __init__(self, simple_repeat_db):
+    def __init__(self, simple_repeat_db, header_flag):
         self.simple_repeat_db = simple_repeat_db
+        self.header_flag = header_flag
 
 
     def write_result_file(self, line, file_handle, db_pos, db_seq):
@@ -24,31 +25,36 @@ class simple_repeat_filter:
         tb = tabix.open(self.simple_repeat_db)
 
         # tabix open
-        chrIndex = 0
         srcfile = open(in_mutation_file,'r')
-        header = srcfile.readline()  
-        headerlist = header.split('\t')
-        for colname in headerlist:
-            if (colname == 'Chr'): 
-                break
-            chrIndex += 1
+        header = ""
+        if self.header_flag:
+            header = srcfile.readline().rstrip('\n')  
+        
+        else: # no header line
+            line = srcfile.readline().rstrip()
+            column_len = len(line.split('\t'))
+            srcfile.close()
+            for num in range (2, column_len):
+                header = header + "\t"
+            srcfile = open(in_mutation_file,'r')
         
         hResult = open(output,'w')
 
-        print >> hResult, (header.rstrip('\n')
-                       + "\tsimple_repeat_pos\tsimple_repeat_seq")
+        newheader = "simple_repeat_pos\tsimple_repeat_seq"
+        print >> hResult, (header +"\t"+ newheader)
 
         for line in srcfile:
             line = line.rstrip()
             itemlist = line.split('\t')
     
             # input file is annovar format (not zero-based number)
-            chr = itemlist[chrIndex]
-            start = (int(itemlist[chrIndex + 1]) - 1)
-            end = int(itemlist[chrIndex + 2])
+            chr = itemlist[0]
+            start = (int(itemlist[1]) - 1)
+            end = int(itemlist[2])
 
-            # chr = chr.replace('chr', '') 
-
+            chridx = chr.find('chr')
+            if chridx < 0:
+                chr = 'chr' + str(chr)
             # tabix databese is a zero-based number 
             position_array = []
             sequence_array = []
@@ -72,6 +78,9 @@ class simple_repeat_filter:
             if db_seq == "": db_seq = "---"
             self.write_result_file(line, hResult, db_pos, db_seq)
 
+        ####
         hResult.close()
+        srcfile.close()
+
 
 
