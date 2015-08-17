@@ -1,5 +1,12 @@
 # GenomonMutationFilter
 
+
+## Dependency
+
+```
+Python (>= 2.7), pysam, pytabix packages
+```
+
 ## Install
 
 ```
@@ -30,14 +37,14 @@ mutfilter realignment [-h] [-t tumor_min_mismatch]
 mutfilter indel [-h] [-s search_length] [-n neighbor]
                      [-b base_qual_thres] [-d min_depth] [-m min_mismatch]
                      [-a allele_frequency_thres] [--header]
-                     target.anno target.bam output.anno
+                     target.anno target_normal.bam output.anno
 ```
 
 ```
 mutfilter breakpoint [-h] [-d max_depth] [-c min_clip_size]
                           [-j junc_num_thres] [-m mapping_quality_thres]
                           [--header]
-                          target.anno target.bam output.anno
+                          target.anno target_normal.bam output.anno
 ```
 
 ```
