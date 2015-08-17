@@ -21,7 +21,7 @@ make
 ```
 mutfilter realignment [-h] [-t tumor_min_mismatch]
                            [-n normal_max_mismatch] [-s score_difference]
-                           [-w window_size]
+                           [-w window_size] [--header]
                            target.anno target_tumor.bam target_normal.bam
                            output.anno ref_genome blat_path
 ```
@@ -29,16 +29,18 @@ mutfilter realignment [-h] [-t tumor_min_mismatch]
 ```
 mutfilter indel [-h] [-s search_length] [-n neighbor]
                      [-b base_qual_thres] [-d min_depth] [-m min_mismatch]
-                     [-a allele_frequency_thres]
+                     [-a allele_frequency_thres] [--header]
                      target.anno target.bam output.anno
 ```
 
 ```
 mutfilter breakpoint [-h] [-d max_depth] [-c min_clip_size]
                           [-j junc_num_thres] [-m mapping_quality_thres]
+                          [--header]
                           target.anno target.bam output.anno
 ```
 
 ```
-mutfilter simplerepeat [-h] target.anno output.anno simple_repeat_database
+mutfilter simplerepeat [-h] [--header]
+                            target.anno output.anno simple_repeat_database
 ```
