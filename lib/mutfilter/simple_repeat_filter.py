@@ -26,22 +26,11 @@ class simple_repeat_filter:
 
         # tabix open
         srcfile = open(in_mutation_file,'r')
-        header = ""
+        hResult = open(output,'w')
         if self.header_flag:
             header = srcfile.readline().rstrip('\n')  
-        
-        else: # no header line
-            line = srcfile.readline().rstrip()
-            column_len = len(line.split('\t'))
-            srcfile.close()
-            for num in range (2, column_len):
-                header = header + "\t"
-            srcfile = open(in_mutation_file,'r')
-        
-        hResult = open(output,'w')
-
-        newheader = "simple_repeat_pos\tsimple_repeat_seq"
-        print >> hResult, (header +"\t"+ newheader)
+            newheader = "simple_repeat_pos\tsimple_repeat_seq"
+            print >> hResult, (header +"\t"+ newheader)
 
         for line in srcfile:
             line = line.rstrip()

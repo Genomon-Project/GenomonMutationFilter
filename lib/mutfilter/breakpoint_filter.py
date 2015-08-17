@@ -26,24 +26,12 @@ class breakpoint_filter:
         samfile = pysam.Samfile(in_bam, "rb")
 
         srcfile = open(in_mutation_file,'r')
-        header = ""
+        hResult = open(output,'w')
         if self.header_flag:
             header = srcfile.readline().rstrip('\n')  
+            newheader = "mismatch_count\tdistance_from_breakpoint"
+            print >> hResult, (header +"\t"+ newheader)
         
-        else: # no header line
-            line = srcfile.readline().rstrip()
-            column_len = len(line.split('\t'))
-            srcfile.close()
-            for num in range (2, column_len):
-                header = header + "\t"
-            srcfile = open(in_mutation_file,'r')
-
-        hResult = open(output,'w')
-        
-        # print header
-        newheader = "mismatch_count\tdistance_from_breakpoint"
-        print >> hResult, (header +"\t"+ newheader)
-
         for line in srcfile:
             line = line.rstrip()
             itemlist = line.split('\t')

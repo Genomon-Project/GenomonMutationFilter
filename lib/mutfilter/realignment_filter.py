@@ -236,24 +236,12 @@ class realignment_filter:
         normal_samfile = pysam.Samfile(in_normal_bam, "rb")
 
         srcfile = open(in_mutation_file,'r')
-        header = ""
+        hResult = open(output,'w')
         if self.header_flag:
             header = srcfile.readline().rstrip('\n')  
-        
-        else: # no header line
-            line = srcfile.readline().rstrip()
-            column_len = len(line.split('\t'))
-            srcfile.close()
-            for num in range (2, column_len):
-                header = header + "\t"
-            srcfile = open(in_mutation_file,'r')
-        
-        hResult = open(output,'w')
-
-        # print header
-        newheader = ("readPairNum_tumor\tvariantPairNum_tumor\totherPairNum_tumor"
-                + "\treadPairNum_normal\tvariantPairNum_normal\totherPairNum_normal")
-        print >> hResult, (header +"\t"+ newheader)
+            newheader = ("readPairNum_tumor\tvariantPairNum_tumor\totherPairNum_tumor"
+                     + "\treadPairNum_normal\tvariantPairNum_normal\totherPairNum_normal")
+            print >> hResult, (header +"\t"+ newheader)
 
         ####
         for line in srcfile:
