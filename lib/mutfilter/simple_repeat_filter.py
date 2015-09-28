@@ -1,8 +1,8 @@
-import tabix
 import sys
 import os
 import re
 import logging
+import pysam
 
 #
 # Class definitions
@@ -22,7 +22,7 @@ class simple_repeat_filter:
     ############################################################
     def filter(self, in_mutation_file, output):
     
-        tb = tabix.open(self.simple_repeat_db)
+        tb = pysam.TabixFile(self.simple_repeat_db)
 
         # tabix open
         srcfile = open(in_mutation_file,'r')
@@ -48,12 +48,13 @@ class simple_repeat_filter:
             position_array = []
             sequence_array = []
             try:
-                records = tb.query(chr,start,end)
-                for record in records:
+                records = tb.fetch(chr, start, end)
+                for record_line in records:
+                    record = record_line.split('\t')
                     position_array.append(record[0] +":"+ record[1] +"-"+ record[2])
                     sequence_array.append(record[15])
                     
-            except tabix.TabixError:
+            except Exception:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 logging.error( ("{0}: {1}:{2}".format( exc_type, fname, exc_tb.tb_lineno) ) )
