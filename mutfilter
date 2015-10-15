@@ -45,6 +45,8 @@ parse_parser.add_argument('-w','--window_size', metavar = "window_size", default
 
 parse_parser.add_argument('--header', action="store_true", default=False,  dest='header_flag')
 
+parse_parser.add_argument('-d','--max_depth', metavar = "max_depth", default='5000', type=int)
+
 parse_parser.set_defaults(func = run_realignment_filter)
 
 

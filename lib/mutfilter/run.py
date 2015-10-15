@@ -17,7 +17,7 @@ from simple_repeat_filter import simple_repeat_filter
 def run_realignment_filter(arg):
 
     logging.info( 'realignment filter start')
-    realignf = realignment_filter(arg.inFasta, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size, arg.score_difference, arg.blatPath, arg.header_flag)
+    realignf = realignment_filter(arg.inFasta, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size, arg.score_difference, arg.blatPath, arg.header_flag, arg.max_depth)
     realignf.filter(arg.targetTumorBam, arg.targetNormalBam, arg.output, arg.targetMutationFile)
     logging.info( 'realignment filter end')
 

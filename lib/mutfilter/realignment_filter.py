@@ -10,7 +10,7 @@ import subprocess
 #
 class realignment_filter:
 
-    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag):
+    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth):
         self.reference_genome = referenceGenome
         self.window = search_length
         self.score_difference = score_difference
@@ -19,6 +19,7 @@ class realignment_filter:
         self.blat_cmds = [blat, '-fine']
         self.complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
         self.header_flag = header_flag
+        self.max_depth = max_depth
      
         
     ############################################################
@@ -55,7 +56,7 @@ class realignment_filter:
         hOUT = open(output, 'w')
 
         for read in bamfile.fetch(chr,start,end):
-          
+
             # get the flag information
             flags = format(int(read.flag), "#014b")[:1:-1]
 
@@ -217,14 +218,15 @@ class realignment_filter:
         hIN.close()
 
         ####
-        if (self.checkSecondBestAlignmentOriginal(tempAlt,tempRef) == 0):
-        # if (self.checkSecondBestAlignment(tempAlt) == 0 and self.checkSecondBestAlignment(tempRef) == 0):
-            tempAltScore, tempAltNM = self.getScore(tempAlt)
-            tempRefScore, tempRefNM = self.getScore(tempRef)
-            # print str(tempRefScore) +" " + str(tempAltScore)
-            if tempAltScore == tempRefScore: numOther.append(tempID[0:-2])
-            elif tempAltScore >  tempRefScore: numAlt.append(tempID[0:-2])
-            elif tempAltScore <  tempRefScore: numRef.append(tempID[0:-2])
+        if (len(tempAlt) > 0 and len(tempRef) > 0):
+            if (self.checkSecondBestAlignmentOriginal(tempAlt,tempRef) == 0):
+                # if (self.checkSecondBestAlignment(tempAlt) == 0 and self.checkSecondBestAlignment(tempRef) == 0):
+                tempAltScore, tempAltNM = self.getScore(tempAlt)
+                tempRefScore, tempRefNM = self.getScore(tempRef)
+                # print str(tempRefScore) +" " + str(tempAltScore)
+                if tempAltScore == tempRefScore: numOther.append(tempID[0:-2])
+                elif tempAltScore >  tempRefScore: numAlt.append(tempID[0:-2])
+                elif tempAltScore <  tempRefScore: numRef.append(tempID[0:-2])
 
         return([len(set(numRef)), len(set(numAlt)), len(set(numOther))])
     
@@ -254,34 +256,41 @@ class realignment_filter:
             end = int(itemlist[2])
             ref = itemlist[3]
             alt = itemlist[4]
+           
+            tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other = ('---','---','---','---','---','---')
+
+            if tumor_samfile.count(chr,start,end) < self.max_depth:
+
+                self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
+                
+                # extract short reads from tumor sequence data around the candidate
+                self.extractRead(tumor_samfile,chr,start,end,output + ".tmp.fa")
+
+                # alignment tumor short reads to the reference and alternative sequences
+                FNULL = open(os.devnull, 'w')
+                retcode = subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
+                                                stdout = FNULL, stderr = subprocess.STDOUT)
+                FNULL.close()
+
+                # summarize alignment results
+                tumor_ref, tumor_alt, tumor_other = self.summarizeRefAlt(output + ".tmp.psl")
             
-            self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
-            
-            # extract short reads from tumor sequence data around the candidate
-            self.extractRead(tumor_samfile,chr,start,end,output + ".tmp.fa")
+            if normal_samfile.count(chr,start,end) < self.max_depth:
 
-            # alignment tumor short reads to the reference and alternative sequences
-            FNULL = open(os.devnull, 'w')
-            retcode = subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
-                                            stdout = FNULL, stderr = subprocess.STDOUT)
-            FNULL.close()
+                # extract short reads from normal sequence data around the candidate
+                self.extractRead(normal_samfile,chr,start,end,output + ".tmp.fa")
 
-            # summarize alignment results
-            tumor_ref, tumor_alt, tumor_other = self.summarizeRefAlt(output + ".tmp.psl")
-            
-            # extract short reads from normal sequence data around the candidate
-            self.extractRead(normal_samfile,chr,start,end,output + ".tmp.fa")
+                # alignment normal short reads to the reference and alternative sequences
+                FNULL = open(os.devnull, 'w')
+                subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
+                                      stdout = FNULL, stderr = subprocess.STDOUT)
+                FNULL.close()
 
-            # alignment normal short reads to the reference and alternative sequences
-            FNULL = open(os.devnull, 'w')
-            subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
-                                  stdout = FNULL, stderr = subprocess.STDOUT)
-            FNULL.close()
+                # summarize alignment results
+                normal_ref, normal_alt, normal_other = self.summarizeRefAlt(output + ".tmp.psl")
 
-            # summarize alignment results
-            normal_ref, normal_alt, normal_other = self.summarizeRefAlt(output + ".tmp.psl")
-
-            if(tumor_alt >= self.tumor_min_mismatch and normal_alt <= self.normal_max_mismatch):
+            if  ((tumor_alt == '---' or tumor_alt >= self.tumor_min_mismatch) and
+                (normal_alt == '---' or normal_alt <= self.normal_max_mismatch)):
                 print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other)
                                         +"\t"+ str(normal_ref) +"\t"+ str(normal_alt) +"\t"+ str(normal_other))
 
@@ -289,4 +298,8 @@ class realignment_filter:
         hResult.close()
         srcfile.close()
 
+        ####
+        if os.path.exists(output + ".tmp.refalt.fa"): os.unlink(output + ".tmp.refalt.fa")
+        if os.path.exists(output + ".tmp.fa"): os.unlink(output + ".tmp.fa")
+        if os.path.exists(output + ".tmp.psl"): os.unlink(output + ".tmp.psl")
 
