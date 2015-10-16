@@ -17,8 +17,8 @@ from simple_repeat_filter import simple_repeat_filter
 def run_realignment_filter(arg):
 
     logging.info( 'realignment filter start')
-    realignf = realignment_filter(arg.inFasta, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size, arg.score_difference, arg.blatPath, arg.header_flag, arg.max_depth)
-    realignf.filter(arg.targetTumorBam, arg.targetNormalBam, arg.output, arg.targetMutationFile)
+    realignf = realignment_filter(arg.ref_genome, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size, arg.score_difference, arg.blat_path, arg.header_flag, arg.max_depth)
+    realignf.filter(arg.bam1, arg.bam2, arg.output, arg.target_mutation_file)
     logging.info( 'realignment filter end')
 
 
@@ -26,7 +26,7 @@ def run_indel_filter(arg):
 
     logging.info( 'indel filter start')
     indelf = indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch, arg.af_thres, arg.base_qual, arg.neighbor, arg.header_flag)
-    indelf.filter(arg.targetMutationFile, arg.targetBam, arg.output)
+    indelf.filter(arg.target_mutation_file, arg.bam2, arg.output)
     logging.info( 'indel filter end')
 
 
@@ -34,15 +34,15 @@ def run_breakpoint_filter(arg):
 
     logging.info( 'breakpoint filter start')
     bpf = breakpoint_filter(arg.max_depth, arg.min_clip_size, arg.junc_num_thres, arg.mapq_thres, arg.header_flag)
-    bpf.filter(arg.targetMutationFile, arg.targetBam, arg.output)
+    bpf.filter(arg.target_mutation_file, arg.bam2, arg.output)
     logging.info( 'breakpoint filter end')
 
 
 def run_simple_repeat_filter(arg):
 
     logging.info( 'simple repeat filter start')
-    simplef = simple_repeat_filter(arg.simpleRepeatDB, arg.header_flag)
-    simplef.filter(arg.targetMutationFile, arg.output)
+    simplef = simple_repeat_filter(arg.simple_repeat_db, arg.header_flag)
+    simplef.filter(arg.target_mutation_file, arg.output)
     logging.info( 'simple repeat filter end')
 
 
