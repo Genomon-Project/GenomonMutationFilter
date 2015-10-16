@@ -4,7 +4,7 @@ GenomonMutationFilter is a software package for filtering false poistive somatic
 
 ## Dependency
 
-Python (>= 2.7), pysam, pytabix packages
+Python (>= 2.7), pysam packages
 * [blat](http://genome.ucsc.edu/)
 
 
