@@ -298,7 +298,7 @@ class realignment_filter:
                     # summarize alignment results
                     normal_ref, normal_alt, normal_other = self.summarizeRefAlt(output + ".tmp.psl")
 
-                if tumor_ref != '---' and  tumor_alt != '---' and  tumor_ref != '---' and  tumor_ref != '---':
+                if tumor_ref != '---' and  tumor_alt != '---' and  normal_ref != '---' and  normal_alt != '---':
                     odds_ratio, fisher_pvalue = fisher(((int(tumor_ref),int(normal_ref)),(int(tumor_alt),int(normal_alt))), alternative='two-sided')
                     log10_fisher_pvalue = '{0:.3f}'.format(float(self.math_log_fisher_pvalue(fisher_pvalue)))
 
