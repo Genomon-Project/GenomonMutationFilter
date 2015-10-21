@@ -4,6 +4,9 @@ import re
 import pysam
 import logging
 import subprocess
+import scipy.special
+from scipy.stats import fisher_exact as fisher
+import math
 
 #
 # Class definitions
@@ -21,7 +24,21 @@ class realignment_filter:
         self.header_flag = header_flag
         self.max_depth = max_depth
      
-        
+    
+    ############################################################
+    def math_log_fisher_pvalue(self,fisher_pvalue):
+
+        val = float(0.0)
+        if fisher_pvalue < 10**(-60):
+            val = float(60.0)
+        elif fisher_pvalue  > 1.0 - 10**(-10) :
+            val = float(0.0)
+        else:
+            val = -math.log( fisher_pvalue, 10 )
+                                                                
+        return val
+
+
     ############################################################
     def makeTwoReference(self, chr,start,end,ref,alt, output):
 
@@ -254,7 +271,7 @@ class realignment_filter:
                 # annovar input file (not zero-based number)
                 chr, start, end, ref, alt  = (itemlist[0], (int(itemlist[1]) - 1), int(itemlist[2]), itemlist[3], itemlist[4])
                 
-                tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other = ('---','---','---','---','---','---')
+                tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('---','---','---','---','---','---','---')
                 self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
 
                 if tumor_samfile.count(chr,start,end) < self.max_depth:
@@ -281,10 +298,16 @@ class realignment_filter:
                     # summarize alignment results
                     normal_ref, normal_alt, normal_other = self.summarizeRefAlt(output + ".tmp.psl")
 
+                if tumor_ref != '---' and  tumor_alt != '---' and  tumor_ref != '---' and  tumor_ref != '---':
+                    odds_ratio, fisher_pvalue = fisher(((int(tumor_ref),int(normal_ref)),(int(tumor_alt),int(normal_alt))), alternative='two-sided')
+                    log10_fisher_pvalue = '{0:.3f}'.format(float(self.math_log_fisher_pvalue(fisher_pvalue)))
+
+
                 if  ((tumor_alt == '---' or tumor_alt >= self.tumor_min_mismatch) and
                     (normal_alt == '---' or normal_alt <= self.normal_max_mismatch)):
                     print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other)
-                                            +"\t"+ str(normal_ref) +"\t"+ str(normal_alt) +"\t"+ str(normal_other))
+                                            +"\t"+ str(normal_ref) +"\t"+ str(normal_alt) +"\t"+ str(normal_other)
+                                            +"\t"+ str(log10_fisher_pvalue))
 
             ####
             tumor_samfile.close()
@@ -295,7 +318,7 @@ class realignment_filter:
 
             if self.header_flag:
                 header = srcfile.readline().rstrip('\n')  
-                newheader = ("RefNum_tumor\tAltNum_tumor\tOtherNum_tumor")
+                newheader = ("RefNum_tumor\tAltNum_tumor\tOtherNum_tumor\t0.1\tratio\t0.9")
                 print >> hResult, (header +"\t"+ newheader)
 
             for line in srcfile:
@@ -303,9 +326,10 @@ class realignment_filter:
                 itemlist = line.split('\t')
                 # annovar input file (not zero-based number)
                 chr, start, end, ref, alt  = (itemlist[0], (int(itemlist[1]) - 1), int(itemlist[2]), itemlist[3], itemlist[4])
+
+                tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('---','---','---','---','---','---')
                
                 if tumor_samfile.count(chr,start,end) < self.max_depth:
-                    tumor_ref, tumor_alt, tumor_other = ('---','---','---')
 
                     self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
                     # extract short reads from tumor sequence data around the candidate
@@ -318,8 +342,12 @@ class realignment_filter:
                     # summarize alignment results
                     tumor_ref, tumor_alt, tumor_other = self.summarizeRefAlt(output + ".tmp.psl")
 
-                    if (tumor_alt == '---' or tumor_alt >= self.tumor_min_mismatch):
-                        print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other))
+                    beta_01  = '{0:.3f}'.format(float(scipy.special.btdtri( int(tumor_alt) + 1, int(tumor_ref) + 1, 0.1 )))
+                    beta_mid = '{0:.3f}'.format(float( int(tumor_alt) + 1 ) / float( int(tumor_ref) + int(tumor_alt) + 2 ))
+                    beta_09  = '{0:.3f}'.format(float(floatscipy.special.btdtri( int(tumor_alt) + 1, int(tumor_ref) + 1, 0.9 )))
+
+                if (tumor_alt == '---' or tumor_alt >= self.tumor_min_mismatch):
+                    print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other) +"\t"+ str(beta_01) +"\t"+ str(beta_mid) +"\t"+ str(beta_09))
             
             ####
             tumor_samfile.close()
