@@ -344,7 +344,7 @@ class realignment_filter:
 
                     beta_01  = '{0:.3f}'.format(float(scipy.special.btdtri( int(tumor_alt) + 1, int(tumor_ref) + 1, 0.1 )))
                     beta_mid = '{0:.3f}'.format(float( int(tumor_alt) + 1 ) / float( int(tumor_ref) + int(tumor_alt) + 2 ))
-                    beta_09  = '{0:.3f}'.format(float(floatscipy.special.btdtri( int(tumor_alt) + 1, int(tumor_ref) + 1, 0.9 )))
+                    beta_09  = '{0:.3f}'.format(float(scipy.special.btdtri( int(tumor_alt) + 1, int(tumor_ref) + 1, 0.9 )))
 
                 if (tumor_alt == '---' or tumor_alt >= self.tumor_min_mismatch):
                     print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other) +"\t"+ str(beta_01) +"\t"+ str(beta_mid) +"\t"+ str(beta_09))
