@@ -13,7 +13,7 @@ import math
 #
 class realignment_filter:
 
-    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth):
+    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth, exclude_sam_flags):
         self.reference_genome = referenceGenome
         self.window = search_length
         self.score_difference = score_difference
@@ -23,6 +23,7 @@ class realignment_filter:
         self.complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
         self.header_flag = header_flag
         self.max_depth = max_depth
+        self.exclude_sam_flags = exclude_sam_flags
      
     
     ############################################################
@@ -75,19 +76,11 @@ class realignment_filter:
         for read in bamfile.fetch(chr,start,end):
 
             # get the flag information
-            flags = format(int(read.flag), "#014b")[:1:-1]
+            read_flag = int(read.flag)
 
-            # skip improper pair
-#            if flags[1] == "0": continue 
+            if 0 != int(bin(self.exclude_sam_flags & read_flag),2): continue
 
-            # skip unmapped read 
-#            if flags[2] == "1" or flags[3] == "1": continue 
-
-            # skip supplementary alignment
-            if flags[8] == "1" or flags[11] == "1": continue
-
-            # skip duplicated reads
-            if flags[10] == "1": continue
+            flags = format(read_flag, "#014b")[:1:-1]
 
             tempSeq = ""
             if flags[4] == "1":

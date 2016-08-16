@@ -7,7 +7,7 @@ from mutfilter.run import *
 ####################
 # top level parser
 parser = argparse.ArgumentParser( description = 'genomon_mutation_filter' )
-parser.add_argument("--version", action = "version", version = "GenomonMutationFilter-0.1.0")
+parser.add_argument("--version", action = "version", version = "GenomonMutationFilter-0.2.0")
 subparsers = parser.add_subparsers()
 
 
@@ -25,6 +25,7 @@ parse_parser.add_argument( '-M', '--normal_max_mismatch', metavar = "normal_max_
 parse_parser.add_argument( '-s', '--score_difference', metavar = "score_difference", default='5', type=int)
 parse_parser.add_argument( '-w', '--window_size', metavar = "window_size", default='200', type=int)
 parse_parser.add_argument( '-d', '--max_depth', metavar = "max_depth", default='5000', type=int)
+parse_parser.add_argument( '-F', '--exclude_sam_flags', metavar = "exclude_sam_flags", default='3328', type=int)
 parse_parser.add_argument( '--header', action="store_true", default=False,  dest='header_flag')
 parse_parser.set_defaults(func = run_realignment_filter)
 
@@ -35,13 +36,14 @@ parse_parser = subparsers.add_parser("indel")
 parse_parser.add_argument( '-t', '--target_mutation_file', help = 'mutation text', type = str, default = None, required = True )
 parse_parser.add_argument( '-2', '--bam2', help = 'normal bam file', type = str, default = None, required = True)
 parse_parser.add_argument( '-o', '--output', help = 'Output text file', type = str, default = None, required = True)
-parse_parser.add_argument( '-s', '--search_length', metavar = "search_length", default='40', type=int)
+parse_parser.add_argument( '-l', '--search_length', metavar = "search_length", default='40', type=int)
 parse_parser.add_argument( '-n', '--neighbor', metavar = "neighbor", default='5', type=int)
-parse_parser.add_argument( '-b', '--base_qual', metavar = "base_qual_thres", default='20', type=int)
 parse_parser.add_argument( '-d', '--min_depth', metavar = "min_depth", default='8', type=int)
 parse_parser.add_argument( '-m', '--min_mismatch', metavar = "min_mismatch", default='100000', type=int)
 parse_parser.add_argument( '-a', '--af_thres', metavar = "allele_frequency_thres", default='1', type=float)
 parse_parser.add_argument( '--header', action="store_true", default=False,  dest='header_flag')
+parse_parser.add_argument( '-s', '--samtools_path', type = str, default = None, required = True)
+parse_parser.add_argument( '-S', '--samtools_params', type = str, default = "-q 20 -BQ0 -d 10000000")
 parse_parser.set_defaults(func = run_indel_filter)
 
 
@@ -55,6 +57,7 @@ parse_parser.add_argument( '-d', '--max_depth', metavar = "max_depth", default='
 parse_parser.add_argument( '-c', '--min_clip_size', metavar = "min_clip_size", default='20', type=int)
 parse_parser.add_argument( '-j', '--junc_num_thres', metavar = "junc_num_thres", default='0', type=int)
 parse_parser.add_argument( '-m', '--mapq_thres', metavar = "mapping_quality_thres", default='10', type=int)
+parse_parser.add_argument( '-F', '--exclude_sam_flags', metavar = "exclude_sam_flags", default='3332', type=int)
 parse_parser.add_argument( '--header', action="store_true", default=False,  dest='header_flag')
 parse_parser.set_defaults(func = run_breakpoint_filter)
 

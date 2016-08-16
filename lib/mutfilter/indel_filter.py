@@ -4,6 +4,7 @@ import re
 import pysam
 import argparse
 import logging
+import subprocess
 from auto_vivification import auto_vivification
 
 #
@@ -11,16 +12,17 @@ from auto_vivification import auto_vivification
 #
 class indel_filter:
 
-    def __init__(self, search_length, min_depth, min_mismatch, af_thres, base_qual_thres, neighbor, header_flag):
+    def __init__(self, search_length, min_depth, min_mismatch, af_thres, neighbor, header_flag, samtools_path, samtools_params):
         self.search_length = search_length
         self.min_depth = min_depth
         self.min_mismatch = min_mismatch
         self.af_thres = af_thres
-        self.base_qual_thres = str(base_qual_thres)
         self.neighbor = neighbor
         self.target = re.compile( '([\+\-])([0-9]+)([ACGTNacgtn]+)' )
         self.remove_chr = re.compile( '\^.' )
         self.header_flag = header_flag
+        self.samtools_path = samtools_path
+        self.samtools_params = samtools_params
     
 
     def write_result_file(self, line, file_handle, max_mismatch_count, max_mismatch_rate):
@@ -30,9 +32,9 @@ class indel_filter:
     def filter(self, in_mutation_file, in_bam, output):
 
         samfile = pysam.Samfile(in_bam, "rb")
-        
         srcfile = open(in_mutation_file,'r')
         hResult = open(output,'w')
+        FNULL = open(os.devnull, 'w')
         if self.header_flag:
             header = srcfile.readline().rstrip('\n')  
             newheader = "tmismatch_count\tmismatch_rate"
@@ -52,14 +54,17 @@ class indel_filter:
             max_mismatch_count = 0
             max_mismatch_rate = 0
             
-            # if (ref == '-' or alt == '-'):
-            #     self.write_result_file(line, hResult, '---', '---')
-            #     continue
             region = chr +":"+str(max(0, (start - self.search_length + 1))) +"-"+ str(end + self.search_length)
+
+            cmd_list = [self.samtools_path,'mpileup']
+            cmd_list.extend(self.samtools_params.split(" "))
+            cmd_list.extend(['-r', region, in_bam])
 
             ####
             # print region
-            for mpileup in pysam.mpileup( '-BQ', '0', '-d', '10000000', "-q", self.base_qual_thres, "-r", region, in_bam ):
+            pileup = subprocess.Popen(cmd_list, stdout=subprocess.PIPE, stderr = FNULL)
+            end_of_pipe = pileup.stdout
+            for mpileup in end_of_pipe:
                 # print mpileup.rstrip()
 
                 #

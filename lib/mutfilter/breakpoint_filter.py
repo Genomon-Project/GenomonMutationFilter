@@ -9,12 +9,13 @@ import logging
 #
 class breakpoint_filter:
 
-    def __init__(self, max_depth, min_clip_size, junc_num_thres, mapq_thres, header_flag):
+    def __init__(self, max_depth, min_clip_size, junc_num_thres, mapq_thres, header_flag, exclude_sam_flags):
         self.max_depth = max_depth
         self.min_clip_size = min_clip_size
         self.junc_num_thres = junc_num_thres
         self.mapq_thres = mapq_thres
         self.header_flag = header_flag
+        self.exclude_sam_flags = exclude_sam_flags
 
 
     def write_result_file(self, line, file_handle, dist, max_junc_cnt):
@@ -55,16 +56,11 @@ class breakpoint_filter:
             for read in samfile.fetch(chr, max(0, int(start-(self.min_clip_size))), int(end+(self.min_clip_size))):
 
                 # get the flag information
-                flags = format(int(read.flag), "#014b")[:1:-1]
+                read_flag = int(read.flag)
 
-                # skip read unmapped
-                if flags[2] == "1": continue
+                if 0 != int(bin(self.exclude_sam_flags & read_flag),2): continue
 
-                # skip supplementary alignment
-                if flags[8] == "1" or flags[11] == "1": continue
-
-                # skip duplicated reads
-                if flags[10] == "1": continue
+                flags = format(read_flag, "#014b")[:1:-1]
 
                 # no clipping
                 if len(read.cigar) == 1: continue
