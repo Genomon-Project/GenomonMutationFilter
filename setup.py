@@ -4,7 +4,7 @@
 from distutils.core import setup
 
 setup(name='genomon_mutation_filter',
-    version='0.2.0',
+    version='0.2.1',
     description='Python tools to verify the validity of somatic mutations.',
     author='Ken-ichi Chiba',
     author_email='kchiba@hgc.jp',
