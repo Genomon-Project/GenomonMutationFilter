@@ -147,6 +147,8 @@ class realignment_filter:
         for item in pysam.faidx(self.reference_genome, range):
             if item[0] == ">": continue
             seq = seq + item.rstrip('\n').upper()
+            seq = seq.replace('>', '')
+            seq = seq.replace(range, '')
 
         print >> hOUT, '>' + label + "_ref"
         print >> hOUT, seq
