@@ -269,7 +269,7 @@ class realignment_filter:
                 tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('---','---','---','---','---','---','---')
                 self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
 
-                if tumor_samfile.count(chr,start,end) < self.max_depth:
+                if tumor_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window):
 
                     # extract short reads from tumor sequence data around the candidate
                     self.extractRead(tumor_samfile,chr,start,end,output + ".tmp.fa")
@@ -281,7 +281,7 @@ class realignment_filter:
                     # summarize alignment results
                     tumor_ref, tumor_alt, tumor_other = self.summarizeRefAlt(output + ".tmp.psl")
                 
-                if normal_samfile.count(chr,start,end) < self.max_depth:
+                if normal_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window):
 
                     # extract short reads from normal sequence data around the candidate
                     self.extractRead(normal_samfile,chr,start,end,output + ".tmp.fa")
@@ -324,7 +324,7 @@ class realignment_filter:
 
                 tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('---','---','---','---','---','---')
                
-                if tumor_samfile.count(chr,start,end) < self.max_depth:
+                if tumor_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
 
                     self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
                     # extract short reads from tumor sequence data around the candidate
