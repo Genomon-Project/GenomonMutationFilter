@@ -356,3 +356,120 @@ class realignment_filter:
         if os.path.exists(output + ".tmp.fa"): os.unlink(output + ".tmp.fa")
         if os.path.exists(output + ".tmp.psl"): os.unlink(output + ".tmp.psl")
 
+    ############################################################
+    def filter_vcf(self, in_tumor_bam, in_normal_bam, output, in_mutation_file, tumor_sample, normal_sample):
+
+        myvcf = pysam.VariantFile(in_mutation_file, "r")
+        myvcf.header.formats.add('NNR', 1, 'Integer', "Number of non-allelic reads")
+        myvcf.header.formats.add('NAR', 1, 'Integer', "Number of allelic reads")
+        myvcf.header.formats.add('NOR', 1, 'Integer', "Number of other reads")
+
+        if in_tumor_bam and in_normal_bam:
+            tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
+            normal_samfile = pysam.Samfile(in_normal_bam, "rb")
+
+            myvcf.header.info.add('RP', 1, 'Float', "Minus logarithm of the p-value by Fishers exact test")
+            hResult = pysam.VariantFile(output,'w', header=myvcf.header)
+            ####
+            for rec in myvcf.fetch():
+                # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
+                chr  = rec.chrom
+                start = rec.pos - 1
+                end = rec.pos
+                ref = rec.ref
+                alt = rec.alts[0]
+                
+                tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('.','.','.','.','.','.','.')
+                self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
+
+                if tumor_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window):
+
+                    # extract short reads from tumor sequence data around the candidate
+                    self.extractRead(tumor_samfile,chr,start,end,output + ".tmp.fa")
+                    # alignment tumor short reads to the reference and alternative sequences
+                    FNULL = open(os.devnull, 'w')
+                    retcode = subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
+                                                    stdout = FNULL, stderr = subprocess.STDOUT)
+                    FNULL.close()
+                    # summarize alignment results
+                    tumor_ref, tumor_alt, tumor_other = self.summarizeRefAlt(output + ".tmp.psl")
+                
+                if normal_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window):
+
+                    # extract short reads from normal sequence data around the candidate
+                    self.extractRead(normal_samfile,chr,start,end,output + ".tmp.fa")
+                    # alignment normal short reads to the reference and alternative sequences
+                    FNULL = open(os.devnull, 'w')
+                    subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
+                                          stdout = FNULL, stderr = subprocess.STDOUT)
+                    FNULL.close()
+                    # summarize alignment results
+                    normal_ref, normal_alt, normal_other = self.summarizeRefAlt(output + ".tmp.psl")
+
+                if tumor_ref != '.' and  tumor_alt != '.' and  normal_ref != '.' and  normal_alt != '.':
+                    odds_ratio, fisher_pvalue = fisher(((int(tumor_ref),int(normal_ref)),(int(tumor_alt),int(normal_alt))), alternative='two-sided')
+                    log10_fisher_pvalue = '{0:.3f}'.format(float(self.math_log_fisher_pvalue(fisher_pvalue)))
+
+                if  ((tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch) and
+                    (normal_alt == '.' or normal_alt <= self.normal_max_mismatch)):
+                    rec.samples[tumor_sample]['NNR'] = tumor_ref
+                    rec.samples[tumor_sample]['NAR'] = tumor_alt
+                    rec.samples[tumor_sample]['NOR'] = tumor_other
+                    rec.samples[normal_sample]['NNR'] = normal_ref
+                    rec.samples[normal_sample]['NAR'] = normal_alt
+                    rec.samples[normal_sample]['NOR'] = normal_other
+                    rec.info['RP'] = float(log10_fisher_pvalue)
+                    hResult.write(rec)
+             
+            ####
+            tumor_samfile.close()
+            normal_samfile.close()
+
+        elif in_tumor_bam:
+            tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
+
+            if self.header_flag:
+                header = srcfile.readline().rstrip('\n')  
+                newheader = ("RefNum_tumor\tAltNum_tumor\tOtherNum_tumor\t0.1\tratio\t0.9")
+                print >> hResult, (header +"\t"+ newheader)
+
+            for line in srcfile:
+                line = line.rstrip()
+                itemlist = line.split('\t')
+                # annovar input file (not zero-based number)
+                chr, start, end, ref, alt  = (itemlist[0], (int(itemlist[1]) - 1), int(itemlist[2]), itemlist[3], itemlist[4])
+
+                tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('---','---','---','---','---','---')
+               
+                if tumor_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
+
+                    self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
+                    # extract short reads from tumor sequence data around the candidate
+                    self.extractRead(tumor_samfile,chr,start,end,output + ".tmp.fa")
+                    # alignment tumor short reads to the reference and alternative sequences
+                    FNULL = open(os.devnull, 'w')
+                    retcode = subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
+                                                    stdout = FNULL, stderr = subprocess.STDOUT)
+                    FNULL.close()
+                    # summarize alignment results
+                    tumor_ref, tumor_alt, tumor_other = self.summarizeRefAlt(output + ".tmp.psl")
+
+                    beta_01  = '{0:.3f}'.format(float(scipy.special.btdtri( int(tumor_alt) + 1, int(tumor_ref) + 1, 0.1 )))
+                    beta_mid = '{0:.3f}'.format(float( int(tumor_alt) + 1 ) / float( int(tumor_ref) + int(tumor_alt) + 2 ))
+                    beta_09  = '{0:.3f}'.format(float(scipy.special.btdtri( int(tumor_alt) + 1, int(tumor_ref) + 1, 0.9 )))
+
+                if (tumor_alt == '---' or tumor_alt >= self.tumor_min_mismatch):
+                    print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other) +"\t"+ str(beta_01) +"\t"+ str(beta_mid) +"\t"+ str(beta_09))
+            
+            ####
+            tumor_samfile.close()
+
+        ####
+        hResult.close()
+        # srcfile.close()
+
+        ####
+        if os.path.exists(output + ".tmp.refalt.fa"): os.unlink(output + ".tmp.refalt.fa")
+        if os.path.exists(output + ".tmp.fa"): os.unlink(output + ".tmp.fa")
+        if os.path.exists(output + ".tmp.psl"): os.unlink(output + ".tmp.psl")
+
