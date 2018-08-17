@@ -7,19 +7,21 @@ import subprocess
 import scipy.special
 from scipy.stats import fisher_exact as fisher
 import math
+import vcf_utils
 
 #
 # Class definitions
 #
 class realignment_filter:
 
-    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth, exclude_sam_flags):
+    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, bcftools, header_flag, max_depth, exclude_sam_flags):
         self.reference_genome = referenceGenome
         self.window = search_length
         self.score_difference = score_difference
         self.tumor_min_mismatch = tumor_min_mismatch
         self.normal_max_mismatch = normal_max_mismatch
         self.blat_cmds = [blat, '-fine']
+        self.bcftools_cmds = [bcftools]
         self.complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
         self.header_flag = header_flag
         self.max_depth = max_depth
@@ -372,42 +374,39 @@ class realignment_filter:
             normal_samfile = pysam.Samfile(in_normal_bam, "rb")
 
             myvcf.header.info.add('FPR', 1, 'Float', "Minus logarithm of the p-value by Fishers exact test processed with Realignment Filter")
-            hResult = pysam.VariantFile(output,'w', header=myvcf.header)
+            hResult = pysam.VariantFile(output+".tmp.vcf",'w', header=myvcf.header)
             ####
             for rec in myvcf.fetch():
                 # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
-                chr  = rec.chrom
-                start = rec.pos - 1
-                end = rec.pos
-                ref = rec.ref
-                alt = rec.alts[0]
+                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(rec.chrom, rec.pos, rec.ref, rec.alts[0])
                 
                 tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('.','.','.','.','.','.','.')
                 self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
 
-                if tumor_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window):
+                if tumor_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) and is_conv:
                     tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_samfile, chr, start, end, output)
                 
-                if normal_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window):
+                if normal_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) and is_conv:
                     normal_ref, normal_alt, normal_other = self.blat_read_count(normal_samfile, chr, start, end, output)
 
                 if tumor_ref != '.' and  tumor_alt != '.' and  normal_ref != '.' and  normal_alt != '.':
                     log10_fisher_pvalue = self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt)
 
-                # if  ((tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch) and
-                #    (normal_alt == '.' or normal_alt <= self.normal_max_mismatch)):
-                rec.samples[tumor_sample]['NNR'] = tumor_ref
-                rec.samples[tumor_sample]['NAR'] = tumor_alt
-                rec.samples[tumor_sample]['NOR'] = tumor_other
-                rec.samples[normal_sample]['NNR'] = normal_ref
-                rec.samples[normal_sample]['NAR'] = normal_alt
-                rec.samples[normal_sample]['NOR'] = normal_other
-                rec.info['FPR'] = float(log10_fisher_pvalue)
-                hResult.write(rec)
+                if  ((tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch) and
+                   (normal_alt == '.' or normal_alt <= self.normal_max_mismatch)):
+                    rec.samples[tumor_sample]['NNR'] = tumor_ref
+                    rec.samples[tumor_sample]['NAR'] = tumor_alt
+                    rec.samples[tumor_sample]['NOR'] = tumor_other
+                    rec.samples[normal_sample]['NNR'] = normal_ref
+                    rec.samples[normal_sample]['NAR'] = normal_alt
+                    rec.samples[normal_sample]['NOR'] = normal_other
+                    rec.info['FPR'] = float(log10_fisher_pvalue)
+                    hResult.write(rec)
              
             ####
             tumor_samfile.close()
             normal_samfile.close()
+            hResult.close()
 
         elif in_tumor_bam:
             tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
@@ -415,15 +414,11 @@ class realignment_filter:
             myvcf.header.info.add('B1R', 1, 'Float', "10% posterior quantile of the beta distribution with Realignment Filter")
             myvcf.header.info.add('BMR', 1, 'Float', "Posterior mean processed with Realignmnt Filter")
             myvcf.header.info.add('B9R', 1, 'Float', "90% posterior quantile of the beta distribution processed with Realignment Filter")
-            hResult = pysam.VariantFile(output,'w', header=myvcf.header)
+            hResult = pysam.VariantFile(output+".tmp.vcf",'w', header=myvcf.header)
             ####
             for rec in myvcf.fetch():
                 # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
-                chr  = rec.chrom
-                start = rec.pos - 1
-                end = rec.pos
-                ref = rec.ref
-                alt = rec.alts[0]
+                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(rec.chrom, rec.pos, rec.ref, rec.alts[0])
                 
                 tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('.','.','.','.','.','.')
                
@@ -432,24 +427,37 @@ class realignment_filter:
                     tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_samfile, chr, start, end, output)
                     beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
 
-                # if (tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch):
-                rec.samples[tumor_sample]['NNR'] = tumor_ref
-                rec.samples[tumor_sample]['NAR'] = tumor_alt
-                rec.samples[tumor_sample]['NOR'] = tumor_other
-                rec.info['B1R'] = float(beta_01)
-                rec.info['BMR'] = float(beta_mid)
-                rec.info['B9R'] = float(beta_09)
-                hResult.write(rec)
+                if (tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch):
+                    rec.samples[tumor_sample]['NNR'] = tumor_ref
+                    rec.samples[tumor_sample]['NAR'] = tumor_alt
+                    rec.samples[tumor_sample]['NOR'] = tumor_other
+                    rec.info['B1R'] = float(beta_01)
+                    rec.info['BMR'] = float(beta_mid)
+                    rec.info['B9R'] = float(beta_09)
+                    hResult.write(rec)
              
             ####
             tumor_samfile.close()
+            hResult.close()
 
         ####
-        hResult.close()
         # srcfile.close()
+
+        hOldHeader = pysam.VariantFile(output +".header",'w', header=myvcf.header) 
+        hOldHeader.close()
+        myvcf.close()
+
+        vcf_utils.sort_header(output+".header", output+".sorted.header")
+        FNULL = open(os.devnull, 'w')
+        subprocess.check_call(self.bcftools_cmds + ["reheader", "-h", output+".sorted.header", "-o", output, output+".tmp.vcf"],
+                              stdout = FNULL, stderr = subprocess.STDOUT)
+        FNULL.close()
 
         ####
         if os.path.exists(output + ".tmp.refalt.fa"): os.unlink(output + ".tmp.refalt.fa")
         if os.path.exists(output + ".tmp.fa"): os.unlink(output + ".tmp.fa")
         if os.path.exists(output + ".tmp.psl"): os.unlink(output + ".tmp.psl")
+        if os.path.exists(output + ".header"): os.unlink(output + ".header")
+        if os.path.exists(output + ".sorted.header"): os.unlink(output + ".sorted.header")
+        if os.path.exists(output + ".tmp.vcf"): os.unlink(output + ".tmp.vcf")
 

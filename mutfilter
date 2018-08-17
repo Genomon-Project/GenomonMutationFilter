@@ -22,6 +22,7 @@ parse_parser.add_argument( '-B', '--sample2', help = '2nd sample name ( control 
 parse_parser.add_argument( '-o', '--output', help = 'Output text file', type = str, default = None, required = True)
 parse_parser.add_argument( '-r', '--ref_genome', help = 'Reference genome', type = str, default = None , required = True)
 parse_parser.add_argument( '-b', '--blat_path', type = str, default = None, required = True)
+parse_parser.add_argument( '-v', '--bcftools_path', type = str, default = None)
 parse_parser.add_argument( '-m', '--tumor_min_mismatch', metavar = "tumor_min_mismatch", default='0', type=int)
 parse_parser.add_argument( '-M', '--normal_max_mismatch', metavar = "normal_max_mismatch", default='100000', type=int)
 parse_parser.add_argument( '-s', '--score_difference', metavar = "score_difference", default='5', type=int)

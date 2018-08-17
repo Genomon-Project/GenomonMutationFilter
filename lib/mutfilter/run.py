@@ -19,7 +19,7 @@ def run_realignment_filter(arg):
     is_anno = True if arg.print_format == 'anno' else False
 
     logging.info( 'realignment filter start')
-    realignf = realignment_filter(arg.ref_genome, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size, arg.score_difference, arg.blat_path, arg.header_flag, arg.max_depth, arg.exclude_sam_flags)
+    realignf = realignment_filter(arg.ref_genome, arg.tumor_min_mismatch, arg.normal_max_mismatch, arg.window_size, arg.score_difference, arg.blat_path, arg.bcftools_path, arg.header_flag, arg.max_depth, arg.exclude_sam_flags)
     if is_anno == True:
         realignf.filter(arg.bam1, arg.bam2, arg.output, arg.target_mutation_file)
     else:
