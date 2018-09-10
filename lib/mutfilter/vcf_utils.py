@@ -23,7 +23,7 @@ def vcf_fields2anno(chrom, pos_str, ref, alt):
 
     # for block substitution
     else:
-        start = pos
+        start = pos - 1
         end = pos
         ret = (chrom, start, end, ref, alt, False)
 

@@ -48,6 +48,8 @@ parse_parser.add_argument( '-a', '--af_thres', metavar = "allele_frequency_thres
 parse_parser.add_argument( '--header', action="store_true", default=False,  dest='header_flag')
 parse_parser.add_argument( '-s', '--samtools_path', type = str, default = None, required = True)
 parse_parser.add_argument( '-S', '--samtools_params', type = str, default = "-q 20 -BQ0 -d 10000000")
+parse_parser.add_argument( '-v', '--bcftools_path', type = str, default = None)
+parse_parser.add_argument( '-O', '--print_format', choices = ['vcf','anno'], help = 'Print VCF or anno(TSV) format',  default = 'anno' )
 parse_parser.set_defaults(func = run_indel_filter)
 
 

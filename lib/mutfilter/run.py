@@ -29,9 +29,14 @@ def run_realignment_filter(arg):
 
 def run_indel_filter(arg):
 
+    is_anno = True if arg.print_format == 'anno' else False
+
     logging.info( 'indel filter start')
-    indelf = indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch, arg.af_thres, arg.neighbor, arg.header_flag, arg.samtools_path, arg.samtools_params)
-    indelf.filter(arg.target_mutation_file, arg.bam2, arg.output)
+    indelf = indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch, arg.af_thres, arg.neighbor, arg.header_flag, arg.samtools_path, arg.samtools_params, arg.bcftools_path)
+    if is_anno == True:
+        indelf.filter(arg.target_mutation_file, arg.bam2, arg.output)
+    else:
+        indelf.filter_vcf(arg.target_mutation_file, arg.bam2, arg.output)
     logging.info( 'indel filter end')
 
 
