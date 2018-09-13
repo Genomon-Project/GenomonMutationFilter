@@ -71,8 +71,8 @@ class simple_repeat_filter:
 
             db_pos, dbseq = self.filter_main(chr,start,end,tb)
             if db_pos == "": db_pos = "---"
-            if db_seq == "": db_seq = "---"
-            self.write_result_file(line, hResult, db_pos, db_seq)
+            if dbseq == "": dbseq = "---"
+            self.write_result_file(line, hResult, db_pos, dbseq)
 
         ####
         hResult.close()
