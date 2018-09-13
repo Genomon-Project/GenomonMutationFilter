@@ -374,7 +374,7 @@ class realignment_filter:
             vcf_reader.infos['FPR'] = vcf.parser._Info('FPR', 1, 'Float', "Minus logarithm of the p-value by Fishers exact test processed with Realignment Filter","MutationFilter","v0.2.0")
         elif in_tumor_bam:
             vcf_reader.infos['B1R'] = vcf.parser._Info('B1R', 1, 'Float', "10% posterior quantile of the beta distribution with Realignment Filter","MutationFilter","v0.2.0")
-            vcf_reader.infos['BMR'] = vcf.parser._Info('BMR', 1, 'Float', "Posterior mean processed with Realignmnt Filter")
+            vcf_reader.infos['BMR'] = vcf.parser._Info('BMR', 1, 'Float', "Posterior mean processed with Realignmnt Filter","MutationFilter","v0.2.0")
             vcf_reader.infos['B9R'] = vcf.parser._Info('B9R', 1, 'Float', "90% posterior quantile of the beta distribution processed with Realignment Filter","MutationFilter","v0.2.0")
 
         vcf_reader.formats['NNR'] = vcf.parser._Format('NNR', 1, 'Integer', "Number of non-allelic reads")
@@ -446,6 +446,7 @@ class realignment_filter:
 
             ####
             for record in vcf_reader:
+                new_record = copy.deepcopy(record)
                 # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
                 chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
                 
@@ -467,8 +468,8 @@ class realignment_filter:
                     new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
                     ## tumor sample
                     sx = sample_list.index(tumor_sample)
-                    new_record.samples[sx_sample].data = collections.namedtuple('CallData', new_keys)
-                    f_vals = [record.samples[sx_sample].data[vx] for vx in range(len(f_keys))]
+                    new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
                     handy_dict = dict(zip(f_keys, f_vals))
                     handy_dict['NNR'] = tumor_ref
                     handy_dict['NAR'] = tumor_alt
