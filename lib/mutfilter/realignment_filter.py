@@ -14,14 +14,13 @@ import vcf_utils
 #
 class realignment_filter:
 
-    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, bcftools, header_flag, max_depth, exclude_sam_flags):
+    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth, exclude_sam_flags):
         self.reference_genome = referenceGenome
         self.window = search_length
         self.score_difference = score_difference
         self.tumor_min_mismatch = tumor_min_mismatch
         self.normal_max_mismatch = normal_max_mismatch
         self.blat_cmds = [blat, '-fine']
-        self.bcftools_cmds = [bcftools]
         self.complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
         self.header_flag = header_flag
         self.max_depth = max_depth
@@ -364,21 +363,36 @@ class realignment_filter:
     ############################################################
     def filter_vcf(self, in_tumor_bam, in_normal_bam, output, in_mutation_file, tumor_sample, normal_sample):
 
-        myvcf = pysam.VariantFile(in_mutation_file, "r")
-        myvcf.header.formats.add('NNR', 1, 'Integer', "Number of non-allelic reads")
-        myvcf.header.formats.add('NAR', 1, 'Integer', "Number of allelic reads")
-        myvcf.header.formats.add('NOR', 1, 'Integer', "Number of other reads")
+        import collections
+        import vcf
+        import copy
+
+        vcf_reader = vcf.Reader(filename = in_mutation_file)
+        f_keys = vcf_reader.formats.keys() #it's an ordered dict
+        # add vcf header info
+        if in_tumor_bam and in_normal_bam:
+            vcf_reader.infos['FPR'] = vcf.parser._Info('FPR', 1, 'Float', "Minus logarithm of the p-value by Fishers exact test processed with Realignment Filter","MutationFilter","v0.2.0")
+        elif in_tumor_bam:
+            vcf_reader.infos['B1R'] = vcf.parser._Info('B1R', 1, 'Float', "10% posterior quantile of the beta distribution with Realignment Filter","MutationFilter","v0.2.0")
+            vcf_reader.infos['BMR'] = vcf.parser._Info('BMR', 1, 'Float', "Posterior mean processed with Realignmnt Filter")
+            vcf_reader.infos['B9R'] = vcf.parser._Info('B9R', 1, 'Float', "90% posterior quantile of the beta distribution processed with Realignment Filter","MutationFilter","v0.2.0")
+
+        vcf_reader.formats['NNR'] = vcf.parser._Format('NNR', 1, 'Integer', "Number of non-allelic reads")
+        vcf_reader.formats['NAR'] = vcf.parser._Format('NAR', 1, 'Integer', "Number of allelic reads")
+        vcf_reader.formats['NOR'] = vcf.parser._Format('NOR', 1, 'Integer', "Number of other reads")
+        new_keys = vcf_reader.formats.keys()
+        sample_list = vcf_reader.samples
+
+        vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
 
         if in_tumor_bam and in_normal_bam:
             tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
             normal_samfile = pysam.Samfile(in_normal_bam, "rb")
 
-            myvcf.header.info.add('FPR', 1, 'Float', "Minus logarithm of the p-value by Fishers exact test processed with Realignment Filter")
-            hResult = pysam.VariantFile(output+".tmp.vcf",'w', header=myvcf.header)
             ####
-            for rec in myvcf.fetch():
-                # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
-                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(rec.chrom, rec.pos, rec.ref, rec.alts[0])
+            for record in vcf_reader:
+                new_record = copy.deepcopy(record)
+                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
                 
                 tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('.','.','.','.','.','.','.')
                 self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
@@ -394,70 +408,84 @@ class realignment_filter:
 
                 if  ((tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch) and
                    (normal_alt == '.' or normal_alt <= self.normal_max_mismatch)):
-                    rec.samples[tumor_sample]['NNR'] = tumor_ref
-                    rec.samples[tumor_sample]['NAR'] = tumor_alt
-                    rec.samples[tumor_sample]['NOR'] = tumor_other
-                    rec.samples[normal_sample]['NNR'] = normal_ref
-                    rec.samples[normal_sample]['NAR'] = normal_alt
-                    rec.samples[normal_sample]['NOR'] = normal_other
-                    rec.info['FPR'] = float(log10_fisher_pvalue)
-                    hResult.write(rec)
+
+                    # Add INFO
+                    new_record.INFO['FPR'] = float(log10_fisher_pvalue)
+
+                    # Add FPRMAT
+                    new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
+                    ## tumor sample
+                    sx = sample_list.index(tumor_sample)
+                    new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
+                    handy_dict = dict(zip(f_keys, f_vals))
+                    handy_dict['NNR'] = tumor_ref
+                    handy_dict['NAR'] = tumor_alt
+                    handy_dict['NOR'] = tumor_other
+                    new_vals = [handy_dict[x] for x in new_keys]
+                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+                    ## normal sample
+                    sx = sample_list.index(normal_sample)
+                    new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
+                    handy_dict = dict(zip(f_keys, f_vals))
+                    handy_dict['NNR'] = normal_ref
+                    handy_dict['NAR'] = normal_alt
+                    handy_dict['NOR'] = normal_other
+                    new_vals = [handy_dict[x] for x in new_keys]
+                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+
+                    vcf_writer.write_record(new_record)
              
             ####
             tumor_samfile.close()
             normal_samfile.close()
-            hResult.close()
 
         elif in_tumor_bam:
             tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
 
-            myvcf.header.info.add('B1R', 1, 'Float', "10% posterior quantile of the beta distribution with Realignment Filter")
-            myvcf.header.info.add('BMR', 1, 'Float', "Posterior mean processed with Realignmnt Filter")
-            myvcf.header.info.add('B9R', 1, 'Float', "90% posterior quantile of the beta distribution processed with Realignment Filter")
-            hResult = pysam.VariantFile(output+".tmp.vcf",'w', header=myvcf.header)
             ####
-            for rec in myvcf.fetch():
+            for record in vcf_reader:
                 # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
-                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(rec.chrom, rec.pos, rec.ref, rec.alts[0])
+                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
                 
-                tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('.','.','.','.','.','.')
+                tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('','','','','','')
                
                 if tumor_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
                     self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
                     tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_samfile, chr, start, end, output)
                     beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
 
-                if (tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch):
-                    rec.samples[tumor_sample]['NNR'] = tumor_ref
-                    rec.samples[tumor_sample]['NAR'] = tumor_alt
-                    rec.samples[tumor_sample]['NOR'] = tumor_other
-                    rec.info['B1R'] = float(beta_01)
-                    rec.info['BMR'] = float(beta_mid)
-                    rec.info['B9R'] = float(beta_09)
-                    hResult.write(rec)
+                if (tumor_alt == '' or tumor_alt >= self.tumor_min_mismatch):
+
+                    # Add INFO
+                    new_record.INFO['B1R'] = float(beta_01)
+                    new_record.INFO['BMR'] = float(beta_mid)
+                    new_record.INFO['B9R'] = float(beta_09)
+
+                    # Add FPRMAT
+                    new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
+                    ## tumor sample
+                    sx = sample_list.index(tumor_sample)
+                    new_record.samples[sx_sample].data = collections.namedtuple('CallData', new_keys)
+                    f_vals = [record.samples[sx_sample].data[vx] for vx in range(len(f_keys))]
+                    handy_dict = dict(zip(f_keys, f_vals))
+                    handy_dict['NNR'] = tumor_ref
+                    handy_dict['NAR'] = tumor_alt
+                    handy_dict['NOR'] = tumor_other
+                    new_vals = [handy_dict[x] for x in new_keys]
+                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+
+                    vcf_writer.write_record(new_record)
              
             ####
             tumor_samfile.close()
-            hResult.close()
 
         ####
-        # srcfile.close()
-
-        hOldHeader = pysam.VariantFile(output +".header",'w', header=myvcf.header) 
-        hOldHeader.close()
-        myvcf.close()
-
-        vcf_utils.sort_header(output+".header", output+".sorted.header")
-        FNULL = open(os.devnull, 'w')
-        subprocess.check_call(self.bcftools_cmds + ["reheader", "-h", output+".sorted.header", "-o", output, output+".tmp.vcf"],
-                              stdout = FNULL, stderr = subprocess.STDOUT)
-        FNULL.close()
+        vcf_writer.close()
 
         ####
         if os.path.exists(output + ".tmp.refalt.fa"): os.unlink(output + ".tmp.refalt.fa")
         if os.path.exists(output + ".tmp.fa"): os.unlink(output + ".tmp.fa")
         if os.path.exists(output + ".tmp.psl"): os.unlink(output + ".tmp.psl")
-        if os.path.exists(output + ".header"): os.unlink(output + ".header")
-        if os.path.exists(output + ".sorted.header"): os.unlink(output + ".sorted.header")
-        if os.path.exists(output + ".tmp.vcf"): os.unlink(output + ".tmp.vcf")
 

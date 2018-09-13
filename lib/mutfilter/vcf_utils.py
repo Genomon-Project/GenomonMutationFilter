@@ -1,7 +1,9 @@
 import os, sys
 
-def vcf_fields2anno(chrom, pos_str, ref, alt):
+def vcf_fields2anno(chrom, pos_str, ref_sub, alt_sub):
     pos = int(pos_str)
+    ref = str(ref_sub)
+    alt = str(alt_sub)
 
     # for insertion
     if len(ref) < len(alt) and len(ref) == 1 and alt[0:1] == ref:

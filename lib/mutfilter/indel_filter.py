@@ -13,7 +13,7 @@ import vcf_utils
 #
 class indel_filter:
 
-    def __init__(self, search_length, min_depth, min_mismatch, af_thres, neighbor, header_flag, samtools_path, samtools_params, bcftools_path):
+    def __init__(self, search_length, min_depth, min_mismatch, af_thres, neighbor, header_flag, samtools_path, samtools_params):
         self.search_length = search_length
         self.min_depth = min_depth
         self.min_mismatch = min_mismatch
@@ -24,7 +24,6 @@ class indel_filter:
         self.header_flag = header_flag
         self.samtools_path = samtools_path
         self.samtools_params = samtools_params
-        self.bcftools_cmds = [bcftools_path]
    
  
     def filter_main(self, chr, start, end, ref, alt, in_bam):
@@ -183,44 +182,56 @@ class indel_filter:
         srcfile.close()
 
 
-    def filter_vcf(self, in_mutation_file, in_bam, output):
+    def filter_vcf(self, in_mutation_file, in_bam, output, tumor_sample, normal_sample):
 
-        myvcf = pysam.VariantFile(in_mutation_file, "r")
-        myvcf.header.info.add('NI', 1, 'Integer', "The number of indel-containing reads around ALT by the matched normal sample")
-        myvcf.header.info.add('RI', 1, 'Float', "The ratio of indel-containing reads around ALT by matched normal sample")
-        hResult = pysam.VariantFile(output+".tmp.vcf",'w', header=myvcf.header)
+        import collections
+        import vcf
+        import copy
 
-        for rec in myvcf.fetch(): 
-    
+        vcf_reader = vcf.Reader(filename = in_mutation_file)
+        f_keys = vcf_reader.formats.keys() #it's an ordered dict
+        # add vcf header info
+        vcf_reader.formats['NI'] = vcf.parser._Format('NI', 1, 'Integer', "The number of indel-containing reads around ALT by the matched normal sample")
+        vcf_reader.formats['RI'] = vcf.parser._Format('RI', 1, 'Float', "The ratio of indel-containing reads around ALT by matched normal sample")
+        new_keys = vcf_reader.formats.keys()
+        sample_list = vcf_reader.samples
+
+        # handle output vcf file
+        vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
+
+        for record in vcf_reader:
             # input file is annovar format (not zero-based number)
-            chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(rec.chrom, rec.pos, rec.ref, rec.alts[0])
+            new_record = copy.deepcopy(record)
+            chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
      
             max_mismatch_count, max_mismatch_rate = self.filter_main(chr, start, end, ref, alt, in_bam)            
             
-            ####
-            # print "mmc: " + str(max_mismatch_count)
-            # print "mm:  " + str(self.min_mismatch)
             if(max_mismatch_count <= self.min_mismatch or max_mismatch_rate <= self.af_thres):
-                rec.info['NI'] = int(max_mismatch_count)
-                rec.info['RI'] = float('{0:.3f}'.format(float(max_mismatch_rate)))
-                hResult.write(rec)
 
-        hOldHeader = pysam.VariantFile(output +".header",'w', header=myvcf.header)
-        hOldHeader.close()
-        myvcf.close()
+                # Add FPRMAT
+                new_record.FORMAT = new_record.FORMAT+":NI:RI"
+                ## tumor sample
+                sx = sample_list.index(tumor_sample)
+                new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
+                handy_dict = dict(zip(f_keys, f_vals))
+                handy_dict['NI'] = int(max_mismatch_count)
+                handy_dict['RI'] = float('{0:.3f}'.format(float(max_mismatch_rate)))
+                new_vals = [handy_dict[x] for x in new_keys]
+                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+                ## normal sample
+                sx = sample_list.index(normal_sample)
+                new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
+                handy_dict = dict(zip(f_keys, f_vals))
+                handy_dict['NI'] = "."
+                handy_dict['RI'] = "."
+                new_vals = [handy_dict[x] for x in new_keys]
+                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
 
-        vcf_utils.sort_header(output+".header", output+".sorted.header")
-        FNULL = open(os.devnull, 'w')
-        subprocess.check_call(self.bcftools_cmds + ["reheader", "-h", output+".sorted.header", "-o", output, output+".tmp.vcf"],
-                              stdout = FNULL, stderr = subprocess.STDOUT)
-        FNULL.close()
+                vcf_writer.write_record(new_record)
 
         ####
-        if os.path.exists(output + ".header"): os.unlink(output + ".header")
-        if os.path.exists(output + ".sorted.header"): os.unlink(output + ".sorted.header")
-        # if os.path.exists(output + ".tmp.vcf"): os.unlink(output + ".tmp.vcf")
-
-        ####
-        hResult.close()
+        vcf_writer.close()
 
 
