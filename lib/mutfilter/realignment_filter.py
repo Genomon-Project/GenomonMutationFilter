@@ -301,13 +301,14 @@ class realignment_filter:
                 chr, start, end, ref, alt  = (itemlist[0], (int(itemlist[1]) - 1), int(itemlist[2]), itemlist[3], itemlist[4])
                 
                 tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('---','---','---','---','---','---','---')
-                self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
+                if int(start) >= int(self.window):
+                    self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
 
-                if tumor_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window):
-                    tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_samfile, chr, start, end, output)
+                    if tumor_samfile.count(chr,start,end) < self.max_depth:
+                        tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_samfile, chr, start, end, output)
 
-                if normal_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window):
-                    normal_ref, normal_alt, normal_other = self.blat_read_count(normal_samfile, chr, start, end, output)
+                    if normal_samfile.count(chr,start,end) < self.max_depth:
+                        normal_ref, normal_alt, normal_other = self.blat_read_count(normal_samfile, chr, start, end, output)
 
                 if tumor_ref != '---' and  tumor_alt != '---' and  normal_ref != '---' and  normal_alt != '---':
                     log10_fisher_pvalue = self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt)
