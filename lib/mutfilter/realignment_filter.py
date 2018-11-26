@@ -249,7 +249,7 @@ class realignment_filter:
 
         # extract short reads from tumor sequence data around the candidate
         self.extractRead(samfile,chr,start,end,output + ".tmp.fa")
-        self.extractRead(samfile,chr,start,end,output + ".tmp.fa")
+        if os.path.getsize(output + ".tmp.fa") == 0: return(0,0,0) 
         # alignment tumor short reads to the reference and alternative sequences
         FNULL = open(os.devnull, 'w')
         subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
@@ -396,13 +396,14 @@ class realignment_filter:
                 chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
                 
                 tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('.','.','.','.','.','.','.')
-                self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
+                if int(start) >= int(self.window):
+                    self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
 
-                if tumor_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) and is_conv:
-                    tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_samfile, chr, start, end, output)
+                    if tumor_samfile.count(chr,start,end) < self.max_depth and is_conv:
+                        tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_samfile, chr, start, end, output)
                 
-                if normal_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) and is_conv:
-                    normal_ref, normal_alt, normal_other = self.blat_read_count(normal_samfile, chr, start, end, output)
+                    if normal_samfile.count(chr,start,end) < self.max_depth and is_conv:
+                        normal_ref, normal_alt, normal_other = self.blat_read_count(normal_samfile, chr, start, end, output)
 
                 if tumor_ref != '.' and  tumor_alt != '.' and  normal_ref != '.' and  normal_alt != '.':
                     log10_fisher_pvalue = self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt)
