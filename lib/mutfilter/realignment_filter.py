@@ -249,14 +249,15 @@ class realignment_filter:
 
         # extract short reads from tumor sequence data around the candidate
         self.extractRead(samfile,chr,start,end,output + ".tmp.fa")
-        if os.path.getsize(output + ".tmp.fa") == 0: return(0,0,0) 
-        # alignment tumor short reads to the reference and alternative sequences
-        FNULL = open(os.devnull, 'w')
-        subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
+        ref, alt, other = 0, 0, 0
+        if os.path.getsize(output + ".tmp.fa") > 0: 
+            # alignment tumor short reads to the reference and alternative sequences
+            FNULL = open(os.devnull, 'w')
+            subprocess.check_call(self.blat_cmds + [output + ".tmp.refalt.fa", output + ".tmp.fa", output + ".tmp.psl"], 
                               stdout = FNULL, stderr = subprocess.STDOUT)
-        FNULL.close()
-        # summarize alignment results
-        ref, alt, other = self.summarizeRefAlt(output + ".tmp.psl")
+            FNULL.close()
+            # summarize alignment results
+            ref, alt, other = self.summarizeRefAlt(output + ".tmp.psl")
         return (ref, alt, other)
 
 
