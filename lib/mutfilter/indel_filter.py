@@ -13,7 +13,8 @@ import vcf_utils
 #
 class indel_filter:
 
-    def __init__(self, search_length, min_depth, min_mismatch, af_thres, neighbor, header_flag, samtools_path, samtools_params):
+    def __init__(self, search_length, min_depth, min_mismatch, af_thres, neighbor, header_flag, samtools_path, samtools_params, reference_genome):
+        self.reference_genome = reference_genome
         self.search_length = search_length
         self.min_depth = min_depth
         self.min_mismatch = min_mismatch
@@ -35,6 +36,10 @@ class indel_filter:
         cmd_list = [self.samtools_path,'mpileup']
         cmd_list.extend(self.samtools_params.split(" "))
         cmd_list.extend(['-r', region, in_bam])
+
+        seq_filename, seq_ext = os.path.splitext(in_bam)
+        if seq_ext == ".cram":
+            cmd_list.extend(['-f', self.reference_genome])
 
         ####
         # print region
@@ -159,7 +164,7 @@ class indel_filter:
         hResult = open(output,'w')
         if self.header_flag:
             header = srcfile.readline().rstrip('\n')  
-            newheader = "tmismatch_count\tmismatch_rate"
+            newheader = "indel_mismatch_count\tindel_mismatch_rate"
             print >> hResult, (header +"\t"+ newheader)
         
         for line in srcfile:

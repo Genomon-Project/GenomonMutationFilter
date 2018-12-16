@@ -11,7 +11,8 @@ import vcf_utils
 #
 class breakpoint_filter:
 
-    def __init__(self, max_depth, min_clip_size, junc_num_thres, mapq_thres, header_flag, exclude_sam_flags):
+    def __init__(self, max_depth, min_clip_size, junc_num_thres, mapq_thres, header_flag, exclude_sam_flags, reference_genome):
+        self.reference_genome = reference_genome
         self.max_depth = max_depth
         self.min_clip_size = min_clip_size
         self.junc_num_thres = junc_num_thres
@@ -98,14 +99,19 @@ class breakpoint_filter:
 
                 
     def filter(self, in_mutation_file, in_bam, output):
-    
-        samfile = pysam.Samfile(in_bam, "rb")
+   
+        seq_filename, seq_ext = os.path.splitext(in_bam)
+
+        if seq_ext == ".cram": 
+            samfile = pysam.AlignmentFile(in_bam, "rc", reference_filename=self.reference_genome)
+        else:
+            samfile = pysam.AlignmentFile(in_bam, "rb")
 
         srcfile = open(in_mutation_file,'r')
         hResult = open(output,'w')
         if self.header_flag:
             header = srcfile.readline().rstrip('\n')  
-            newheader = "mismatch_count\tdistance_from_breakpoint"
+            newheader = "bp_mismatch_count\tdistance_from_breakpoint"
             print >> hResult, (header +"\t"+ newheader)
         
         for line in srcfile:
@@ -148,7 +154,12 @@ class breakpoint_filter:
         # handle output vcf file
         vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
 
-        samfile = pysam.Samfile(in_bam, "rb")
+        seq_filename, seq_ext = os.path.splitext(in_bam)
+
+        if seq_ext == ".cram": 
+            samfile = pysam.AlignmentFile(in_bam, "rc", reference_filename=self.reference_genome)
+        else:
+            samfile = pysam.AlignmentFile(in_bam, "rb")
 
         for record in vcf_reader:
             # input file is annovar format (not zero-based number)

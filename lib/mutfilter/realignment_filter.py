@@ -284,14 +284,19 @@ class realignment_filter:
         srcfile = open(in_mutation_file,'r')
         hResult = open(output,'w')
 
+        seq_filename, seq_ext = os.path.splitext(in_tumor_bam)
+
         if in_tumor_bam and in_normal_bam:
-            tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
-            normal_samfile = pysam.Samfile(in_normal_bam, "rb")
+            if seq_ext == ".cram":
+                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rc", reference_filename=self.reference_genome)
+                normal_samfile = pysam.AlignmentFile(in_normal_bam, "rc", reference_filename=self.reference_genome)
+            else:
+                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rb")
+                normal_samfile = pysam.AlignmentFile(in_normal_bam, "rb")
 
             if self.header_flag:
                 header = srcfile.readline().rstrip('\n')  
-                newheader = ("RefNum_tumor\tAltNum_tumor\tOtherNum_tumor"
-                         + "\tRefNum_normal\tAltNum_normal\tOtherNum_normal")
+                newheader = ("readPairNum_tumor\tvariantPairNum_tumor\totherPairNum_tumor\treadPairNum_normal\tvariantPairNum_normal\totherPairNum_normal\tP-value(fisher_realignment)")
                 print >> hResult, (header +"\t"+ newheader)
 
             ####
@@ -325,11 +330,14 @@ class realignment_filter:
             normal_samfile.close()
 
         elif in_tumor_bam:
-            tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
+            if seq_ext == ".cram":
+                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rc", reference_filename=self.reference_genome)
+            else:
+                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rb")
 
             if self.header_flag:
                 header = srcfile.readline().rstrip('\n')  
-                newheader = ("RefNum_tumor\tAltNum_tumor\tOtherNum_tumor\t0.1\tratio\t0.9")
+                newheader = ("readPairNum\tvariantPairNum\totherPairNum\t10%_posterior_quantile(realignment)\tposterior_mean(realignment)\t90%_posterior_quantile(realignment)")
                 print >> hResult, (header +"\t"+ newheader)
 
             for line in srcfile:
@@ -387,9 +395,15 @@ class realignment_filter:
 
         vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
 
+        seq_filename, seq_ext = os.path.splitext(in_tumor_bam)
+
         if in_tumor_bam and in_normal_bam:
-            tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
-            normal_samfile = pysam.Samfile(in_normal_bam, "rb")
+            if seq_ext == ".cram":
+                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rc",  reference_filename=self.reference_genome)
+                normal_samfile = pysam.AlignmentFile(in_normal_bam, "rc",  reference_filename=self.reference_genome)
+            else:
+                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rb")
+                normal_samfile = pysam.AlignmentFile(in_normal_bam, "rb")
 
             ####
             for record in vcf_reader:
@@ -445,7 +459,10 @@ class realignment_filter:
             normal_samfile.close()
 
         elif in_tumor_bam:
-            tumor_samfile = pysam.Samfile(in_tumor_bam, "rb")
+            if seq_ext == ".cram":
+                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rc", reference_filename=self.reference_genome)
+            else:
+                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rb")
 
             ####
             for record in vcf_reader:
