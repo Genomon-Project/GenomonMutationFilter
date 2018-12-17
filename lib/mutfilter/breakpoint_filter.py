@@ -81,7 +81,7 @@ class breakpoint_filter:
         dist = 0
         for key in bp_dict:
             juncPos_current = (key.split("\t")[0])
-              
+
             if ((int(juncPos_current) - self.min_clip_size) <= start <= int(juncPos_current)
             or (start <= int(juncPos_current) <= end)
             or (int(juncPos_current) <= end <= int(juncPos_current) + self.min_clip_size)):
@@ -94,7 +94,9 @@ class breakpoint_filter:
             sdist = abs(start - int(max_junc_pos))
             edist = abs(end   - int(max_junc_pos))
             dist = sdist if sdist < edist else edist
-    
+
+        if (max_junc_cnt_p + max_junc_cnt_m) == 0:
+            dist = 0
         return (dist, (max_junc_cnt_p + max_junc_cnt_m))
 
                 
