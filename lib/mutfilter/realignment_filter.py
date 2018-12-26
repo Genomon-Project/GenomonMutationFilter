@@ -8,13 +8,17 @@ import scipy.special
 from scipy.stats import fisher_exact as fisher
 import math
 import vcf_utils
+import collections
+import vcf
+import copy
+import multiprocessing
 
 #
 # Class definitions
 #
 class realignment_filter:
 
-    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth, exclude_sam_flags):
+    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth, exclude_sam_flags, thread_num):
         self.reference_genome = referenceGenome
         self.window = search_length
         self.score_difference = score_difference
@@ -25,6 +29,7 @@ class realignment_filter:
         self.header_flag = header_flag
         self.max_depth = max_depth
         self.exclude_sam_flags = exclude_sam_flags
+        self.thread_num = thread_num
      
     
     ############################################################
@@ -245,7 +250,7 @@ class realignment_filter:
     
 
     ############################################################
-    def blat_read_count(self, samfile,chr,start,end,output):
+    def blat_read_count(self, samfile,chr,start,end,output, thread_idx):
 
         # extract short reads from tumor sequence data around the candidate
         self.extractRead(samfile,chr,start,end,output + ".tmp.fa")
@@ -268,7 +273,6 @@ class realignment_filter:
         log10_fisher_pvalue = '{0:.3f}'.format(float(self.math_log_fisher_pvalue(fisher_pvalue)))
         return log10_fisher_pvalue
 
-
     ############################################################
     def calc_btdtri(self, tumor_ref, tumor_alt):
 
@@ -279,42 +283,82 @@ class realignment_filter:
 
 
     ############################################################
-    def filter(self, in_tumor_bam, in_normal_bam, output, in_mutation_file):
+    def partition_anno(self, in_mutation_file):
 
+        # count the number of lines
+        line_num = sum(1 for line in open(in_mutation_file))
+
+        thread_num_mod = min(line_num, self.thread_num)
+        if thread_num_mod == 0: thread_num_mod = 1
+
+        each_partition_line_num = line_num / thread_num_mod
+
+        current_line_num = 0
+        split_index = 1
+        with open(in_mutation_file) as hin:
+            hout = open(in_mutation_file +"."+str(split_index), "w")
+            for line in hin:
+                print >> hout, line.rstrip('\n')
+                current_line_num = current_line_num + 1
+                if current_line_num > each_partition_line_num and split_index < thread_num_mod:
+                    current_line_num = 0
+                    split_index = split_index + 1
+                    hout.close()
+                    hout = open(in_mutation_file +"." + str(split_index), "w")
+
+        hout.close()
+        return thread_num_mod
+
+
+    ############################################################
+    def Print_header(self, in_mutation_file, hResult, is_TN_pair):
         srcfile = open(in_mutation_file,'r')
-        hResult = open(output,'w')
+        header = srcfile.readline().rstrip('\n')  
+        if is_TN_pair:
+            newheader = ("readPairNum_tumor\tvariantPairNum_tumor\totherPairNum_tumor\treadPairNum_normal\tvariantPairNum_normal\totherPairNum_normal\tP-value(fisher_realignment)")
+        else:
+            newheader = ("readPairNum\tvariantPairNum\totherPairNum\t10%_posterior_quantile(realignment)\tposterior_mean(realignment)\t90%_posterior_quantile(realignment)")
+        print >> hResult, (header +"\t"+ newheader)
+        srcfile.close()
+
+
+    ###########################################################
+    def filter_main_pair(self, in_tumor_bam, in_normal_bam, in_mutation_file, output, thread_idx, is_multi_thread):
 
         seq_filename, seq_ext = os.path.splitext(in_tumor_bam)
+        if seq_ext == ".cram":
+            tumor_align_file = pysam.AlignmentFile(in_tumor_bam, "rc", reference_filename=self.reference_genome)
+            normal_align_file = pysam.AlignmentFile(in_normal_bam, "rc", reference_filename=self.reference_genome)
+        else:
+            tumor_align_file = pysam.AlignmentFile(in_tumor_bam, "rb")
+            normal_align_file = pysam.AlignmentFile(in_normal_bam, "rb")
 
-        if in_tumor_bam and in_normal_bam:
-            if seq_ext == ".cram":
-                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rc", reference_filename=self.reference_genome)
-                normal_samfile = pysam.AlignmentFile(in_normal_bam, "rc", reference_filename=self.reference_genome)
-            else:
-                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rb")
-                normal_samfile = pysam.AlignmentFile(in_normal_bam, "rb")
+        srcfile = open(in_mutation_file,'r')
+        if is_multi_thread:
+            hResult = open(output,'w')
+        else:
+            hResult = open(output,'a')
 
-            if self.header_flag:
-                header = srcfile.readline().rstrip('\n')  
-                newheader = ("readPairNum_tumor\tvariantPairNum_tumor\totherPairNum_tumor\treadPairNum_normal\tvariantPairNum_normal\totherPairNum_normal\tP-value(fisher_realignment)")
-                print >> hResult, (header +"\t"+ newheader)
+        if self.header_flag and thread_idx == 1:
+            # skip header
+            srcfile.readline()
 
-            ####
-            for line in srcfile:
-                line = line.rstrip()
-                itemlist = line.split('\t')
-                # annovar input file (not zero-based number)
-                chr, start, end, ref, alt  = (itemlist[0], (int(itemlist[1]) - 1), int(itemlist[2]), itemlist[3], itemlist[4])
+        ####
+        for line in srcfile:
+            line = line.rstrip()
+            itemlist = line.split('\t')
+            # annovar input file (not zero-based number)
+            chr, start, end, ref, alt  = (itemlist[0], (int(itemlist[1]) - 1), int(itemlist[2]), itemlist[3], itemlist[4])
                 
-                tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('---','---','---','---','---','---','---')
-                if int(start) >= int(self.window):
-                    self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
+            tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('---','---','---','---','---','---','---')
+            if int(start) >= int(self.window):
+                self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
 
-                    if tumor_samfile.count(chr,start,end) < self.max_depth:
-                        tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_samfile, chr, start, end, output)
+                if tumor_align_file.count(chr,start,end) < self.max_depth:
+                    tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
 
-                    if normal_samfile.count(chr,start,end) < self.max_depth:
-                        normal_ref, normal_alt, normal_other = self.blat_read_count(normal_samfile, chr, start, end, output)
+                if normal_align_file.count(chr,start,end) < self.max_depth:
+                    normal_ref, normal_alt, normal_other = self.blat_read_count(normal_align_file, chr, start, end, output, thread_idx)
 
                 if tumor_ref != '---' and  tumor_alt != '---' and  normal_ref != '---' and  normal_alt != '---':
                     log10_fisher_pvalue = self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt)
@@ -324,189 +368,388 @@ class realignment_filter:
                     print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other)
                                             +"\t"+ str(normal_ref) +"\t"+ str(normal_alt) +"\t"+ str(normal_other)
                                             +"\t"+ str(log10_fisher_pvalue))
-
-            ####
-            tumor_samfile.close()
-            normal_samfile.close()
-
-        elif in_tumor_bam:
-            if seq_ext == ".cram":
-                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rc", reference_filename=self.reference_genome)
-            else:
-                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rb")
-
-            if self.header_flag:
-                header = srcfile.readline().rstrip('\n')  
-                newheader = ("readPairNum\tvariantPairNum\totherPairNum\t10%_posterior_quantile(realignment)\tposterior_mean(realignment)\t90%_posterior_quantile(realignment)")
-                print >> hResult, (header +"\t"+ newheader)
-
-            for line in srcfile:
-                line = line.rstrip()
-                itemlist = line.split('\t')
-                # annovar input file (not zero-based number)
-                chr, start, end, ref, alt  = (itemlist[0], (int(itemlist[1]) - 1), int(itemlist[2]), itemlist[3], itemlist[4])
-
-                tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('---','---','---','---','---','---')
-               
-                if tumor_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
-
-                    self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
-                    tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_samfile, chr, start, end, output)
-                    beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
-
-                if (tumor_alt == '---' or tumor_alt >= self.tumor_min_mismatch):
-                    print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other) +"\t"+ str(beta_01) +"\t"+ str(beta_mid) +"\t"+ str(beta_09))
-            
-            ####
-            tumor_samfile.close()
-
         ####
         hResult.close()
         srcfile.close()
+        tumor_align_file.close()
+        normal_align_file.close()
+
+
+    ###########################################################
+    def filter_main_single(self, in_tumor_bam, in_mutation_file, output, thread_idx, is_multi_thread):
+
+        seq_filename, seq_ext = os.path.splitext(in_tumor_bam)
+        if seq_ext == ".cram":
+            tumor_align_file = pysam.AlignmentFile(in_tumor_bam, "rc", reference_filename=self.reference_genome)
+        else:
+            tumor_align_file = pysam.AlignmentFile(in_tumor_bam, "rb")
+
+        srcfile = open(in_mutation_file,'r')
+        if is_multi_thread:
+            hResult = open(output,'w')
+        else:
+            hResult = open(output,'a')
+
+        if self.header_flag and thread_idx == 1:
+            # skip header
+            srcfile.readline()
 
         ####
+        for line in srcfile:
+            line = line.rstrip()
+            itemlist = line.split('\t')
+            # annovar input file (not zero-based number)
+            chr, start, end, ref, alt  = (itemlist[0], (int(itemlist[1]) - 1), int(itemlist[2]), itemlist[3], itemlist[4])
+
+            tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('---','---','---','---','---','---')
+               
+            if tumor_align_file.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
+
+                self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
+                tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
+                beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
+
+            if (tumor_alt == '---' or tumor_alt >= self.tumor_min_mismatch):
+                print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other) +"\t"+ str(beta_01) +"\t"+ str(beta_mid) +"\t"+ str(beta_09))
+            
+        ####
+        hResult.close()
+        srcfile.close()
+        tumor_align_file.close()
+
+
+    ############################################################
+    def filter(self, in_tumor_bam, in_normal_bam, output, in_mutation_file):
+
+        thread_num_mod = 1
+        if in_tumor_bam and in_normal_bam:
+
+            #
+            # multi thread
+            #             
+            if self.thread_num > 1:
+                thread_num_mod = self.partition_anno(in_mutation_file)
+                jobs = []
+                for idx in range(1, thread_num_mod+1): 
+                    proc = multiprocessing.Process(target = self.filter_main_pair, \
+                        args = (in_tumor_bam, in_normal_bam, in_mutation_file +"."+ str(idx), output +"."+ str(idx), idx, True))
+                    jobs.append(proc)
+                    proc.start()
+
+                for idx in range(0, thread_num_mod): 
+                    jobs[idx].join() 
+
+                with open(output, 'w') as w:
+                    if self.header_flag:
+                        self.Print_header(in_mutation_file, w, True)
+                    for idx in range(1, thread_num_mod+1): 
+                        with open(output +"."+ str(idx), 'r') as hin:
+                            for line in hin:
+                                print >> w, line.rstrip('\n') 
+
+            #
+            # single thread
+            # 
+            else:
+                with open(output, 'w') as w:
+                    if self.header_flag:
+                        self.Print_header(in_mutation_file, w, True)
+                self.filter_main_pair(in_tumor_bam, in_normal_bam, in_mutation_file, output, 1, False)
+
+        elif in_tumor_bam:
+
+            #
+            # multi thread
+            #             
+            if self.thread_num > 1:
+                thread_num_mod = self.partition_anno(in_mutation_file)
+                jobs = []
+                for idx in range(1, thread_num_mod+1): 
+                    proc = multiprocessing.Process(target = self.filter_main_single, \
+                        args = (in_tumor_bam, in_mutation_file +"."+ str(idx), output + "." + str(idx), idx, True))
+                    jobs.append(proc)
+                    proc.start()
+
+                for idx in range(0,thread_num_mod): 
+                    jobs[idx].join() 
+
+                with open(output, 'w') as w:
+                    if self.header_flag:
+                        self.Print_header(in_mutation_file, w, False)
+                    for idx in range(1,thread_num_mod+1): 
+                        with open(output +"."+ str(idx), 'r') as hin:
+                            for line in hin:
+                                print >> w, line.rstrip('\n') 
+
+            #
+            # single thread
+            # 
+            else:
+                with open(output, 'w') as w:
+                    if self.header_flag:
+                        self.Print_header(in_mutation_file, w, False)
+                self.filter_main_single(in_tumor_bam, in_mutation_file, output, 1, False)
+
+        ####
+        for idx in range(1, thread_num_mod+1): 
+            if os.path.exists(in_mutation_file +"."+str(idx)): os.unlink(in_mutation_file +"."+str(idx))
+            if os.path.exists(output +"."+str(idx)): os.unlink(output +"."+str(idx))
+            if os.path.exists(output +"."+str(idx)+ ".tmp.refalt.fa"): os.unlink(output +"."+str(idx)+ ".tmp.refalt.fa")
+            if os.path.exists(output +"."+str(idx)+ ".tmp.fa"): os.unlink(output +"."+str(idx)+ ".tmp.fa")
+            if os.path.exists(output +"."+str(idx)+ ".tmp.psl"): os.unlink(output +"."+str(idx)+ ".tmp.psl")
         if os.path.exists(output + ".tmp.refalt.fa"): os.unlink(output + ".tmp.refalt.fa")
         if os.path.exists(output + ".tmp.fa"): os.unlink(output + ".tmp.fa")
         if os.path.exists(output + ".tmp.psl"): os.unlink(output + ".tmp.psl")
 
 
     ############################################################
-    def filter_vcf(self, in_tumor_bam, in_normal_bam, output, in_mutation_file, tumor_sample, normal_sample):
-
-        import collections
-        import vcf
-        import copy
-
-        vcf_reader = vcf.Reader(filename = in_mutation_file)
-        f_keys = vcf_reader.formats.keys() #it's an ordered dict
-        # add vcf header info
-        if in_tumor_bam and in_normal_bam:
+    def add_meta_vcf(self, vcf_reader, is_TN_pair):
+        if is_TN_pair:
             vcf_reader.infos['FPR'] = vcf.parser._Info('FPR', 1, 'Float', "Minus logarithm of the p-value by Fishers exact test processed with Realignment Filter","MutationFilter","v0.2.0")
-        elif in_tumor_bam:
+        else:
             vcf_reader.infos['B1R'] = vcf.parser._Info('B1R', 1, 'Float', "10% posterior quantile of the beta distribution with Realignment Filter","MutationFilter","v0.2.0")
             vcf_reader.infos['BMR'] = vcf.parser._Info('BMR', 1, 'Float', "Posterior mean processed with Realignmnt Filter","MutationFilter","v0.2.0")
             vcf_reader.infos['B9R'] = vcf.parser._Info('B9R', 1, 'Float', "90% posterior quantile of the beta distribution processed with Realignment Filter","MutationFilter","v0.2.0")
-
         vcf_reader.formats['NNR'] = vcf.parser._Format('NNR', 1, 'Integer', "Number of non-allelic reads")
         vcf_reader.formats['NAR'] = vcf.parser._Format('NAR', 1, 'Integer', "Number of allelic reads")
         vcf_reader.formats['NOR'] = vcf.parser._Format('NOR', 1, 'Integer', "Number of other reads")
+        
+
+    ############################################################
+    def partition_vcf(self, in_mutation_file):
+
+        # count the number of lines
+        line_num = 0
+        vcf_reader = vcf.Reader(filename = in_mutation_file)
+        for record in vcf_reader:
+            line_num = line_num + 1
+
+        thread_num_mod = min(line_num, self.thread_num)
+        if thread_num_mod == 0: thread_num_mod = 1
+
+        each_partition_line_num = line_num / thread_num_mod
+
+        current_line_num = 0
+        split_index = 1
+        vcf_writer = vcf.Writer(open(in_mutation_file +"."+str(split_index), 'w'), vcf_reader)
+        vcf_reader = vcf.Reader(filename = in_mutation_file)
+        for record in vcf_reader:
+            vcf_writer.write_record(record)
+            current_line_num = current_line_num + 1
+            if current_line_num > each_partition_line_num and split_index < thread_num_mod:
+                current_line_num = 0
+                split_index = split_index + 1
+                vcf_writer.close()
+                vcf_writer = vcf.Writer(open(in_mutation_file +"."+str(split_index), 'w'), vcf_reader)
+
+        vcf_writer.close()
+        return thread_num_mod
+
+
+    ###########################################################
+    def filter_main_pair_vcf(self, in_tumor_bam, in_normal_bam, in_mutation_file, output, tumor_sample, normal_sample, thread_idx):
+
+        seq_filename, seq_ext = os.path.splitext(in_tumor_bam)
+        if seq_ext == ".cram":
+            tumor_align_file = pysam.AlignmentFile(in_tumor_bam, "rc",  reference_filename=self.reference_genome)
+            normal_align_file = pysam.AlignmentFile(in_normal_bam, "rc",  reference_filename=self.reference_genome)
+        else:
+            tumor_align_file = pysam.AlignmentFile(in_tumor_bam, "rb")
+            normal_align_file = pysam.AlignmentFile(in_normal_bam, "rb")
+
+        vcf_reader = vcf.Reader(filename = in_mutation_file)
+        f_keys = vcf_reader.formats.keys() #it's an ordered dict
+        self.add_meta_vcf(vcf_reader, True)
         new_keys = vcf_reader.formats.keys()
         sample_list = vcf_reader.samples
 
         vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
 
-        seq_filename, seq_ext = os.path.splitext(in_tumor_bam)
+        ####
+        for record in vcf_reader:
+            new_record = copy.deepcopy(record)
+            chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
+               
+            tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('.','.','.','.','.','.','.')
+            if int(start) >= int(self.window):
+                self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
 
-        if in_tumor_bam and in_normal_bam:
-            if seq_ext == ".cram":
-                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rc",  reference_filename=self.reference_genome)
-                normal_samfile = pysam.AlignmentFile(in_normal_bam, "rc",  reference_filename=self.reference_genome)
-            else:
-                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rb")
-                normal_samfile = pysam.AlignmentFile(in_normal_bam, "rb")
-
-            ####
-            for record in vcf_reader:
-                new_record = copy.deepcopy(record)
-                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
+                if tumor_align_file.count(chr,start,end) < self.max_depth and is_conv:
+                    tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
                 
-                tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('.','.','.','.','.','.','.')
-                if int(start) >= int(self.window):
-                    self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
+                if normal_align_file.count(chr,start,end) < self.max_depth and is_conv:
+                    normal_ref, normal_alt, normal_other = self.blat_read_count(normal_align_file, chr, start, end, output, thread_idx)
 
-                    if tumor_samfile.count(chr,start,end) < self.max_depth and is_conv:
-                        tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_samfile, chr, start, end, output)
-                
-                    if normal_samfile.count(chr,start,end) < self.max_depth and is_conv:
-                        normal_ref, normal_alt, normal_other = self.blat_read_count(normal_samfile, chr, start, end, output)
+            if tumor_ref != '.' and  tumor_alt != '.' and  normal_ref != '.' and  normal_alt != '.':
+                log10_fisher_pvalue = self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt)
 
-                if tumor_ref != '.' and  tumor_alt != '.' and  normal_ref != '.' and  normal_alt != '.':
-                    log10_fisher_pvalue = self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt)
+            if  ((tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch) and
+                (normal_alt == '.' or normal_alt <= self.normal_max_mismatch)):
 
-                if  ((tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch) and
-                   (normal_alt == '.' or normal_alt <= self.normal_max_mismatch)):
+                # Add INFO
+                new_record.INFO['FPR'] = float(log10_fisher_pvalue)
 
-                    # Add INFO
-                    new_record.INFO['FPR'] = float(log10_fisher_pvalue)
+                # Add FPRMAT
+                new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
+                ## tumor sample
+                sx = sample_list.index(tumor_sample)
+                new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
+                handy_dict = dict(zip(f_keys, f_vals))
+                handy_dict['NNR'] = tumor_ref
+                handy_dict['NAR'] = tumor_alt
+                handy_dict['NOR'] = tumor_other
+                new_vals = [handy_dict[x] for x in new_keys]
+                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+                ## normal sample
+                sx = sample_list.index(normal_sample)
+                new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
+                handy_dict = dict(zip(f_keys, f_vals))
+                handy_dict['NNR'] = normal_ref
+                handy_dict['NAR'] = normal_alt
+                handy_dict['NOR'] = normal_other
+                new_vals = [handy_dict[x] for x in new_keys]
+                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
 
-                    # Add FPRMAT
-                    new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
-                    ## tumor sample
-                    sx = sample_list.index(tumor_sample)
-                    new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
-                    f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
-                    handy_dict = dict(zip(f_keys, f_vals))
-                    handy_dict['NNR'] = tumor_ref
-                    handy_dict['NAR'] = tumor_alt
-                    handy_dict['NOR'] = tumor_other
-                    new_vals = [handy_dict[x] for x in new_keys]
-                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
-                    ## normal sample
-                    sx = sample_list.index(normal_sample)
-                    new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
-                    f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
-                    handy_dict = dict(zip(f_keys, f_vals))
-                    handy_dict['NNR'] = normal_ref
-                    handy_dict['NAR'] = normal_alt
-                    handy_dict['NOR'] = normal_other
-                    new_vals = [handy_dict[x] for x in new_keys]
-                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
-
-                    vcf_writer.write_record(new_record)
+                vcf_writer.write_record(new_record)
              
-            ####
-            tumor_samfile.close()
-            normal_samfile.close()
+        ####
+        tumor_align_file.close()
+        normal_align_file.close()
+
+
+    ###########################################################
+    def filter_main_single_vcf(self, in_tumor_bam, in_mutation_file, output, tumor_sample, thread_idx):
+
+        seq_filename, seq_ext = os.path.splitext(in_tumor_bam)
+        if seq_ext == ".cram":
+            tumor_align_file = pysam.AlignmentFile(in_tumor_bam, "rc", reference_filename=self.reference_genome)
+        else:
+            tumor_align_file = pysam.AlignmentFile(in_tumor_bam, "rb")
+
+        vcf_reader = vcf.Reader(filename = in_mutation_file)
+        f_keys = vcf_reader.formats.keys() #it's an ordered dict
+        self.add_meta_vcf(vcf_reader, False)
+        new_keys = vcf_reader.formats.keys()
+        sample_list = vcf_reader.samples
+
+        vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
+
+        ####
+        for record in vcf_reader:
+            new_record = copy.deepcopy(record)
+            # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
+            chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
+                
+            tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('','','','','','')
+               
+            if tumor_align_file.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
+                self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
+                tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
+                beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
+
+            if (tumor_alt == '' or tumor_alt >= self.tumor_min_mismatch):
+
+                # Add INFO
+                new_record.INFO['B1R'] = float(beta_01)
+                new_record.INFO['BMR'] = float(beta_mid)
+                new_record.INFO['B9R'] = float(beta_09)
+
+                # Add FPRMAT
+                new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
+                ## tumor sample
+                sx = sample_list.index(tumor_sample)
+                new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
+                handy_dict = dict(zip(f_keys, f_vals))
+                handy_dict['NNR'] = tumor_ref
+                handy_dict['NAR'] = tumor_alt
+                handy_dict['NOR'] = tumor_other
+                new_vals = [handy_dict[x] for x in new_keys]
+                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+
+                vcf_writer.write_record(new_record)
+             
+        ####
+        tumor_align_file.close()
+
+
+    ############################################################
+    def filter_vcf(self, in_tumor_bam, in_normal_bam, output, in_mutation_file, tumor_sample, normal_sample):
+
+        thread_num_mod = 1
+        if in_tumor_bam and in_normal_bam:
+
+            #
+            # multi thread
+            #             
+            if self.thread_num > 1:
+                thread_num_mod = self.partition_vcf(in_mutation_file)
+                jobs = []
+                for idx in range(1, thread_num_mod+1): 
+                    proc = multiprocessing.Process(target = self.filter_main_pair_vcf, \
+                        args = (in_tumor_bam, in_normal_bam, in_mutation_file +"."+ str(idx), output +"."+ str(idx), tumor_sample, normal_sample, idx))
+                    jobs.append(proc)
+                    proc.start()
+
+                for idx in range(0, thread_num_mod): 
+                    jobs[idx].join() 
+
+                vcf_reader = vcf.Reader(filename = in_mutation_file)
+                self.add_meta_vcf(vcf_reader, True)
+                vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
+                for idx in range(1, thread_num_mod+1): 
+                    vcf_reader_tmp = vcf.Reader(filename = output +"."+ str(idx))
+                    for record in vcf_reader_tmp:
+                        vcf_writer.write_record(record)
+                vcf_writer.close()
+
+            #
+            # single thread
+            # 
+            else:
+                self.filter_main_pair_vcf(in_tumor_bam, in_normal_bam, in_mutation_file, output, tumor_sample, normal_sample, 1)
 
         elif in_tumor_bam:
-            if seq_ext == ".cram":
-                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rc", reference_filename=self.reference_genome)
+
+            #
+            # multi thread
+            #             
+            if self.thread_num > 1:
+                thread_num_mod = self.partition_vcf(in_mutation_file)
+                jobs = []
+                for idx in range(1, thread_num_mod+1): 
+                    proc = multiprocessing.Process(target = self.filter_main_single_vcf, \
+                        args = (in_tumor_bam, in_mutation_file +"."+ str(idx), output +"."+ str(idx), tumor_sample, idx))
+                    jobs.append(proc)
+                    proc.start()
+
+                for idx in range(0, thread_num_mod): 
+                    jobs[idx].join() 
+
+                vcf_reader = vcf.Reader(filename = in_mutation_file)
+                self.add_meta_vcf(vcf_reader, False)
+                vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
+                for idx in range(1, thread_num_mod+1): 
+                    vcf_reader_tmp = vcf.Reader(filename = output +"."+ str(idx))
+                    for record in vcf_reader_tmp:
+                        vcf_writer.write_record(record)
+                vcf_writer.close()
+
+            #
+            # single thread
+            # 
             else:
-                tumor_samfile = pysam.AlignmentFile(in_tumor_bam, "rb")
-
-            ####
-            for record in vcf_reader:
-                new_record = copy.deepcopy(record)
-                # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
-                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
-                
-                tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('','','','','','')
-               
-                if tumor_samfile.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
-                    self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
-                    tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_samfile, chr, start, end, output)
-                    beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
-
-                if (tumor_alt == '' or tumor_alt >= self.tumor_min_mismatch):
-
-                    # Add INFO
-                    new_record.INFO['B1R'] = float(beta_01)
-                    new_record.INFO['BMR'] = float(beta_mid)
-                    new_record.INFO['B9R'] = float(beta_09)
-
-                    # Add FPRMAT
-                    new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
-                    ## tumor sample
-                    sx = sample_list.index(tumor_sample)
-                    new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
-                    f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
-                    handy_dict = dict(zip(f_keys, f_vals))
-                    handy_dict['NNR'] = tumor_ref
-                    handy_dict['NAR'] = tumor_alt
-                    handy_dict['NOR'] = tumor_other
-                    new_vals = [handy_dict[x] for x in new_keys]
-                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
-
-                    vcf_writer.write_record(new_record)
-             
-            ####
-            tumor_samfile.close()
+                self.filter_main_single_vcf(in_tumor_bam, in_mutation_file, output, tumor_sample, 1)
 
         ####
-        vcf_writer.close()
-
-        ####
+        for idx in range(1, thread_num_mod+1): 
+            if os.path.exists(in_mutation_file +"."+str(idx)): os.unlink(in_mutation_file +"."+str(idx))
+            if os.path.exists(output +"."+str(idx)): os.unlink(output +"."+str(idx))
+            if os.path.exists(output +"."+str(idx)+ ".tmp.refalt.fa"): os.unlink(output +"."+str(idx)+ ".tmp.refalt.fa")
+            if os.path.exists(output +"."+str(idx)+ ".tmp.fa"): os.unlink(output +"."+str(idx)+ ".tmp.fa")
+            if os.path.exists(output +"."+str(idx)+ ".tmp.psl"): os.unlink(output +"."+str(idx)+ ".tmp.psl")
         if os.path.exists(output + ".tmp.refalt.fa"): os.unlink(output + ".tmp.refalt.fa")
         if os.path.exists(output + ".tmp.fa"): os.unlink(output + ".tmp.fa")
         if os.path.exists(output + ".tmp.psl"): os.unlink(output + ".tmp.psl")
-

@@ -7,7 +7,7 @@ from mutfilter.run import *
 ####################
 # top level parser
 parser = argparse.ArgumentParser( description = 'genomon_mutation_filter' )
-parser.add_argument("--version", action = "version", version = "GenomonMutationFilter-0.2.5")
+parser.add_argument("--version", action = "version", version = "GenomonMutationFilter-0.2.6")
 subparsers = parser.add_subparsers()
 
 
@@ -30,6 +30,7 @@ parse_parser.add_argument( '-d', '--max_depth', metavar = "max_depth", default='
 parse_parser.add_argument( '-F', '--exclude_sam_flags', metavar = "exclude_sam_flags", default='3328', type=int)
 parse_parser.add_argument( '-O', '--print_format', choices = ['vcf','anno'], help = 'Print VCF or anno(TSV) format',  default = 'anno' )
 parse_parser.add_argument( '--header', action="store_true", default=False,  dest='header_flag')
+parse_parser.add_argument( '-T', '--thread_num', metavar = "number_of_threads", default='1', type=int)
 parse_parser.set_defaults(func = run_realignment_filter)
 
 
