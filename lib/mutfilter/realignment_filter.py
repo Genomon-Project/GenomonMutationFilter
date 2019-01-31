@@ -55,8 +55,15 @@ class realignment_filter:
         label = ','.join([chr, str(start), str(end), ref, alt])
         range = chr + ":" + str(int(start) - self.window + 1) +"-"+ str(int(end) + self.window)
         for item in pysam.faidx(self.reference_genome, range):
-            if item[0] == ">": continue
+            # if item[0] == ">": continue
             seq = seq + item.rstrip('\n').upper()
+        seq = seq.replace('>', '')
+        seq = seq.replace(range.upper(), '')
+
+        if re.search(r'[^ACGTUWSMKRYBDHVN]', seq) is not None:
+            print >> sys.stderr, "The return value in get_seq function includes non-nucleotide characters:"
+            print >> sys.stderr, seq
+            sys.exit(1)
 
         print >> hOUT, '>' + label + "_ref"
         print >> hOUT, seq

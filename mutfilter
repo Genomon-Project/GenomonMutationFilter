@@ -7,7 +7,7 @@ from mutfilter.run import *
 ####################
 # top level parser
 parser = argparse.ArgumentParser( description = 'genomon_mutation_filter' )
-parser.add_argument("--version", action = "version", version = "GenomonMutationFilter-0.2.6")
+parser.add_argument("--version", action = "version", version = "GenomonMutationFilter-0.2.7")
 subparsers = parser.add_subparsers()
 
 
