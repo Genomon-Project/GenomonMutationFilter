@@ -47,41 +47,6 @@ class realignment_filter:
 
 
     ############################################################
-    def makeTwoReference(self, chr,start,end,ref,alt, output):
-
-        hOUT = open(output, 'w')
-        
-        seq = ""
-        label = ','.join([chr, str(start), str(end), ref, alt])
-        range = chr + ":" + str(int(start) - self.window + 1) +"-"+ str(int(end) + self.window)
-        for item in pysam.faidx(self.reference_genome, range):
-            # if item[0] == ">": continue
-            seq = seq + item.rstrip('\n').upper()
-        seq = seq.replace('>', '')
-        seq = seq.replace(range.upper(), '')
-
-        if re.search(r'[^ACGTUWSMKRYBDHVN]', seq) is not None:
-            print >> sys.stderr, "The return value in get_seq function includes non-nucleotide characters:"
-            print >> sys.stderr, seq
-            sys.exit(1)
-
-        print >> hOUT, '>' + label + "_ref"
-        print >> hOUT, seq
-
-        # for insertion
-        if ref == "-":   seq = seq[0:(self.window + 1)] + alt + seq[-self.window:]
-        # for deletion
-        elif alt == "-": seq = seq[0:self.window] + seq[-self.window:]
-         # for SNV
-        else:            seq = seq[0:self.window] + alt + seq[-self.window:]
-
-        print >> hOUT, '>' + label + "_alt"
-        print >> hOUT, seq
-
-        hOUT.close()
-
-
-    ############################################################
     def extractRead(self, bamfile, chr,start,end, output):
 
         hOUT = open(output, 'w')
@@ -158,10 +123,15 @@ class realignment_filter:
         label = ','.join([chr, str(start), str(end), ref, alt])
         range = chr + ":" + str(int(start) - self.window + 1) +"-"+ str(int(end) + self.window)
         for item in pysam.faidx(self.reference_genome, range):
-            if item[0] == ">": continue
+            # if item[0] == ">": continue
             seq = seq + item.rstrip('\n').upper()
-            seq = seq.replace('>', '')
-            seq = seq.replace(range, '')
+        seq = seq.replace('>', '')
+        seq = seq.replace(range.upper(), '')
+
+        if re.search(r'[^ACGTUWSMKRYBDHVN]', seq) is not None:
+            print >> sys.stderr, "The return value in get_seq function includes non-nucleotide characters:"
+            print >> sys.stderr, seq
+            sys.exit(1)
 
         print >> hOUT, '>' + label + "_ref"
         print >> hOUT, seq
