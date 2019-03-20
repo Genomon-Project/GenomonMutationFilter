@@ -86,7 +86,7 @@ class simple_repeat_filter:
         tb = pysam.TabixFile(self.simple_repeat_db)
 
         vcf_reader = vcf.Reader(filename = in_mutation_file)
-        vcf_reader.formats['SR'] = vcf.parser._Info('SR', 0, 'Flag', "Simple repeat region","MutationFilter","v0.2.0")
+        vcf_reader.infos['SR'] = vcf.parser._Info('SR', 0, 'Flag', "Simple repeat region","MutationFilter","v0.2.0")
 
         # handle output vcf file
         vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
