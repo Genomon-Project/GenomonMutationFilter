@@ -74,5 +74,5 @@ def sort_header(in_header, out_header):
 
     with open(out_header, "w") as hout:
         for val in out_list:
-            print >> hout, val
+            print(val, file=hout)
 

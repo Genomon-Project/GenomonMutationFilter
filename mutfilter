@@ -1,13 +1,13 @@
 #! /usr/bin/env python
 
 import argparse
-from mutfilter.run import *
+from mutfilter import run
 
 
 ####################
 # top level parser
 parser = argparse.ArgumentParser( description = 'genomon_mutation_filter' )
-parser.add_argument("--version", action = "version", version = "GenomonMutationFilter-0.2.8")
+parser.add_argument("--version", action = "version", version = "GenomonMutationFilter-0.2.9")
 subparsers = parser.add_subparsers()
 
 
@@ -31,7 +31,7 @@ parse_parser.add_argument( '-F', '--exclude_sam_flags', metavar = "exclude_sam_f
 parse_parser.add_argument( '-O', '--print_format', choices = ['vcf','anno'], help = 'Print VCF or anno(TSV) format',  default = 'anno' )
 parse_parser.add_argument( '--header', action="store_true", default=False,  dest='header_flag')
 parse_parser.add_argument( '-T', '--thread_num', metavar = "number_of_threads", default='1', type=int)
-parse_parser.set_defaults(func = run_realignment_filter)
+parse_parser.set_defaults(func = run.run_realignment_filter)
 
 
 ####################
@@ -52,7 +52,7 @@ parse_parser.add_argument( '-s', '--samtools_path', type = str, default = None, 
 parse_parser.add_argument( '-S', '--samtools_params', type = str, default = "-q 20 -BQ0 -d 10000000")
 parse_parser.add_argument( '-O', '--print_format', choices = ['vcf','anno'], help = 'Print VCF or anno(TSV) format',  default = 'anno' )
 parse_parser.add_argument( '-r', '--ref_genome', help = 'Reference genome', type = str, default = None)
-parse_parser.set_defaults(func = run_indel_filter)
+parse_parser.set_defaults(func = run.run_indel_filter)
 
 
 ####################
@@ -71,7 +71,7 @@ parse_parser.add_argument( '-F', '--exclude_sam_flags', metavar = "exclude_sam_f
 parse_parser.add_argument( '--header', action="store_true", default=False,  dest='header_flag')
 parse_parser.add_argument( '-O', '--print_format', choices = ['vcf','anno'], help = 'Print VCF or anno(TSV) format',  default = 'anno' )
 parse_parser.add_argument( '-r', '--ref_genome', help = 'Reference genome', type = str, default = None)
-parse_parser.set_defaults(func = run_breakpoint_filter)
+parse_parser.set_defaults(func = run.run_breakpoint_filter)
 
 
 ####################
@@ -82,7 +82,7 @@ parse_parser.add_argument( '-o', '--output', help = 'Output text file', type = s
 parse_parser.add_argument( '-S', '--simple_repeat_db', help = 'simple_repeat_database', type = str, default = None, required = True)
 parse_parser.add_argument('--header', action="store_true", default=False,  dest='header_flag')
 parse_parser.add_argument( '-O', '--print_format', choices = ['vcf','anno'], help = 'Print VCF or anno(TSV) format',  default = 'anno' )
-parse_parser.set_defaults(func = run_simple_repeat_filter)
+parse_parser.set_defaults(func = run.run_simple_repeat_filter)
 
 
 ####################

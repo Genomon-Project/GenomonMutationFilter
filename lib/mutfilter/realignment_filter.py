@@ -7,7 +7,7 @@ import subprocess
 import scipy.special
 from scipy.stats import fisher_exact as fisher
 import math
-import vcf_utils
+from . import vcf_utils
 import collections
 import vcf
 import copy
@@ -16,7 +16,7 @@ import multiprocessing
 #
 # Class definitions
 #
-class realignment_filter:
+class Realignment_filter:
 
     def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth, exclude_sam_flags, thread_num):
         self.reference_genome = referenceGenome
@@ -49,37 +49,30 @@ class realignment_filter:
     ############################################################
     def extractRead(self, bamfile, chr,start,end, output):
 
-        hOUT = open(output, 'w')
+        with open(output, 'w') as hOUT:
+            for read in bamfile.fetch(chr,start,end):
 
-        for read in bamfile.fetch(chr,start,end):
+                # get the flag information
+                read_flag = int(read.flag)
 
-            # get the flag information
-            read_flag = int(read.flag)
+                if 0 != int(bin(self.exclude_sam_flags & read_flag),2): continue
 
-            if 0 != int(bin(self.exclude_sam_flags & read_flag),2): continue
+                flags = format(read_flag, "#014b")[:1:-1]
 
-            flags = format(read_flag, "#014b")[:1:-1]
+                tempSeq = ""
+                if flags[4] == "1":
+                    tempSeq = "".join(self.complement.get(base) for base in reversed(str(read.seq)))
+                else:
+                    tempSeq = read.seq
 
-            tempSeq = ""
-            if flags[4] == "1":
-                tempSeq = "".join(self.complement.get(base) for base in reversed(str(read.seq)))
-            else:
-                tempSeq = read.seq
-
-            # the first read
-            if flags[6] == "1":
-                print >> hOUT, '>' + read.qname + '/1'
-                print >> hOUT, tempSeq
-                # print '>' + read.qname + '/1'
-                # print tempSeq
-            else:
-                print >> hOUT, '>' + read.qname + '/2'
-                print >> hOUT, tempSeq
-                # print '>' + read.qname + '/2'
-                # print tempSeq
-
-        hOUT.close()
-
+                # the first read
+                if flags[6] == "1":
+                    print('>' + read.qname + '/1',file=hOUT)
+                    print(tempSeq, file=hOUT)
+                else:
+                    print('>' + read.qname + '/2',file=hOUT)
+                    print(tempSeq, file=hOUT)
+        
 
     ############################################################
     def checkSecondBestAlignmentOriginal(self, align1, align2):
@@ -95,18 +88,6 @@ class realignment_filter:
             return 1
         return 0
 
-
-    ############################################################
-    def checkSecondBestAlignment(self, align):
-
-        # return 1 if there is another alignment whose number of matches if close to the second best alignemt
-        if len(align) >= 2:
-            align.sort(key=lambda x:x[0],reverse=True)
-            if (abs(align[0][0] - align[1][0]) <= range_of_close_best_alignment):
-                return 1
-        return 0
-
-
     ############################################################
     def getScore(self, align):
         if len(align) >= 1:
@@ -114,11 +95,10 @@ class realignment_filter:
             return (align[0][0], align[0][1])
         return (-1000,0)
 
+
     ############################################################
     def makeTwoReference(self, chr,start,end,ref,alt, output):
 
-        hOUT = open(output, 'w')
-        
         seq = ""
         label = ','.join([chr, str(start), str(end), ref, alt])
         range = chr + ":" + str(int(start) - self.window + 1) +"-"+ str(int(end) + self.window)
@@ -129,33 +109,29 @@ class realignment_filter:
         seq = seq.replace(range.upper(), '')
 
         if re.search(r'[^ACGTUWSMKRYBDHVN]', seq) is not None:
-            print >> sys.stderr, "The return value in get_seq function includes non-nucleotide characters:"
-            print >> sys.stderr, seq
+            print("The return value in get_seq function includes non-nucleotide characters:", file=sys.stderr)
+            print(seq, file=sys.stderr)
             sys.exit(1)
 
-        print >> hOUT, '>' + label + "_ref"
-        print >> hOUT, seq
-        # print '>' + label + "_ref"
-        # print seq
+        with open(output, 'w') as hOUT:
+            print('>' + label + "_ref", file=hOUT)
+            print(seq, file=hOUT)
 
-        # for insertion
-        if ref == "-":   seq = seq[0:(self.window + 1)] + alt + seq[-self.window:]
-        # for deletion
-        elif alt == "-": seq = seq[0:self.window] + seq[-self.window:]
-         # for SNV
-        else:            seq = seq[0:self.window] + alt + seq[-self.window:]
+            # for insertion
+            if ref == "-":   seq = seq[0:(self.window + 1)] + alt + seq[-self.window:]
+            # for deletion
+            elif alt == "-": seq = seq[0:self.window] + seq[-self.window:]
+             # for SNV
+            else:            seq = seq[0:self.window] + alt + seq[-self.window:]
 
-        print >> hOUT, '>' + label + "_alt"
-        print >> hOUT, seq
-        # print '>' + label  + "_alt"
-        # print seq
+            print('>' + label + "_alt", file=hOUT)
+            print(seq, file=hOUT)
 
-        hOUT.close()
 
     ############################################################
     def summarizeRefAlt(self, inputPsl):
         
-        hIN = open(inputPsl, 'r')
+        
 
         numOther = []
         numAlt = []
@@ -165,60 +141,52 @@ class realignment_filter:
         tempAlt = []
         tempRef = []
         ####
-        for line in hIN:
-            # print line.rstrip('\n')
+        with open(inputPsl, 'r') as hIN:
+            for line in hIN:
 
-            F = line.rstrip('\n').split('\t')
-            if F[0].isdigit() == False: continue
-
-            # remove the read pair num info ("/1", "/2") 
-            # F[9] = F[9][0:-2]
-            if tempID != F[9]:
-                if tempID != "":
+                F = line.rstrip('\n').split('\t')
+                if F[0].isdigit() == False: continue
+    
+                # remove the read pair num info ("/1", "/2") 
+                if tempID != F[9]:
+                    if tempID != "":
+                        ####
+                        if (self.checkSecondBestAlignmentOriginal(tempAlt,tempRef) == 0):
+                            tempAltScore, tempAltNM = self.getScore(tempAlt)
+                            tempRefScore, tempRefNM = self.getScore(tempRef)
+                            if tempAltScore == tempRefScore: numOther.append(tempID[0:-2])
+                            elif tempAltScore >  tempRefScore: numAlt.append(tempID[0:-2])
+                            elif tempAltScore <  tempRefScore: numRef.append(tempID[0:-2])
+    
+                    tempID = F[9]
+                    tempAlt = []
+                    tempRef = []
                 
-                    ####
-                    if (self.checkSecondBestAlignmentOriginal(tempAlt,tempRef) == 0):
-                    # if (self.checkSecondBestAlignment(tempAlt) == 0 and self.checkSecondBestAlignment(tempRef) == 0):
-                        tempAltScore, tempAltNM = self.getScore(tempAlt)
-                        tempRefScore, tempRefNM = self.getScore(tempRef)
-                        # print str(tempRefScore) +" " + str(tempAltScore)
-                        if tempAltScore == tempRefScore: numOther.append(tempID[0:-2])
-                        elif tempAltScore >  tempRefScore: numAlt.append(tempID[0:-2])
-                        elif tempAltScore <  tempRefScore: numRef.append(tempID[0:-2])
-
-                tempID = F[9]
-                tempAlt = []
-                tempRef = []
-            
-            x = F[18].split(',')
-            y = F[19].split(',')
-            z = F[20].split(',')
-            number_of_mismatch = int(F[1]) + int(F[3])
-
-            for i in range(1, int(F[17])):
-            
-                ly = int(y[i]) - int(y[i - 1]) - int(x[i - 1]) 
-                lz = int(z[i]) - int(z[i - 1]) - int(x[i - 1]) 
-                if (ly > 0): number_of_mismatch += ly
-                if (lz > 0): number_of_mismatch += lz
-
-            my_score = int(int(F[0]) - number_of_mismatch) 
-            tNM = int(F[10]) - int(F[0]) + int(F[5]) + int(F[7])
-
-            if F[13][-3:] == "alt":
-                tempAlt.append((my_score, tNM))
-            elif F[13][-3:] == "ref":
-                tempRef.append((my_score, tNM))
-
-        hIN.close()
+                x = F[18].split(',')
+                y = F[19].split(',')
+                z = F[20].split(',')
+                number_of_mismatch = int(F[1]) + int(F[3])
+    
+                for i in range(1, int(F[17])):
+                
+                    ly = int(y[i]) - int(y[i - 1]) - int(x[i - 1]) 
+                    lz = int(z[i]) - int(z[i - 1]) - int(x[i - 1]) 
+                    if (ly > 0): number_of_mismatch += ly
+                    if (lz > 0): number_of_mismatch += lz
+    
+                my_score = int(int(F[0]) - number_of_mismatch) 
+                tNM = int(F[10]) - int(F[0]) + int(F[5]) + int(F[7])
+    
+                if F[13][-3:] == "alt":
+                    tempAlt.append((my_score, tNM))
+                elif F[13][-3:] == "ref":
+                    tempRef.append((my_score, tNM))
 
         ####
         if (len(tempAlt) > 0 and len(tempRef) > 0):
             if (self.checkSecondBestAlignmentOriginal(tempAlt,tempRef) == 0):
-                # if (self.checkSecondBestAlignment(tempAlt) == 0 and self.checkSecondBestAlignment(tempRef) == 0):
                 tempAltScore, tempAltNM = self.getScore(tempAlt)
                 tempRefScore, tempRefNM = self.getScore(tempRef)
-                # print str(tempRefScore) +" " + str(tempAltScore)
                 if tempAltScore == tempRefScore: numOther.append(tempID[0:-2])
                 elif tempAltScore >  tempRefScore: numAlt.append(tempID[0:-2])
                 elif tempAltScore <  tempRefScore: numRef.append(tempID[0:-2])
@@ -263,7 +231,8 @@ class realignment_filter:
     def partition_anno(self, in_mutation_file):
 
         # count the number of lines
-        line_num = sum(1 for line in open(in_mutation_file))
+        with open(in_mutation_file, "r") as hin:
+            line_num = sum(1 for line in hin)
 
         thread_num_mod = min(line_num, self.thread_num)
         if thread_num_mod == 0: thread_num_mod = 1
@@ -275,7 +244,7 @@ class realignment_filter:
         with open(in_mutation_file) as hin:
             hout = open(in_mutation_file +"."+str(split_index), "w")
             for line in hin:
-                print >> hout, line.rstrip('\n')
+                print(line.rstrip('\n'), file=hout)
                 current_line_num = current_line_num + 1
                 if current_line_num > each_partition_line_num and split_index < thread_num_mod:
                     current_line_num = 0
@@ -289,14 +258,13 @@ class realignment_filter:
 
     ############################################################
     def Print_header(self, in_mutation_file, hResult, is_TN_pair):
-        srcfile = open(in_mutation_file,'r')
-        header = srcfile.readline().rstrip('\n')  
-        if is_TN_pair:
-            newheader = ("readPairNum_tumor\tvariantPairNum_tumor\totherPairNum_tumor\treadPairNum_normal\tvariantPairNum_normal\totherPairNum_normal\tP-value(fisher_realignment)")
-        else:
-            newheader = ("readPairNum\tvariantPairNum\totherPairNum\t10%_posterior_quantile(realignment)\tposterior_mean(realignment)\t90%_posterior_quantile(realignment)")
-        print >> hResult, (header +"\t"+ newheader)
-        srcfile.close()
+        with open(in_mutation_file,'r') as srcfile:
+            header = srcfile.readline().rstrip('\n')  
+            if is_TN_pair:
+                newheader = ("readPairNum_tumor\tvariantPairNum_tumor\totherPairNum_tumor\treadPairNum_normal\tvariantPairNum_normal\totherPairNum_normal\tP-value(fisher_realignment)")
+            else:
+                newheader = ("readPairNum\tvariantPairNum\totherPairNum\t10%_posterior_quantile(realignment)\tposterior_mean(realignment)\t90%_posterior_quantile(realignment)")
+            print(header +"\t"+ newheader, file=hResult)
 
 
     ###########################################################
@@ -342,9 +310,9 @@ class realignment_filter:
 
                 if  ((tumor_alt == '---' or tumor_alt >= self.tumor_min_mismatch) and
                     (normal_alt == '---' or normal_alt <= self.normal_max_mismatch)):
-                    print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other)
-                                            +"\t"+ str(normal_ref) +"\t"+ str(normal_alt) +"\t"+ str(normal_other)
-                                            +"\t"+ str(log10_fisher_pvalue))
+                    print(line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other)
+                               +"\t"+ str(normal_ref) +"\t"+ str(normal_alt) +"\t"+ str(normal_other)
+                               +"\t"+ str(log10_fisher_pvalue), file=hResult)
         ####
         hResult.close()
         srcfile.close()
@@ -387,7 +355,9 @@ class realignment_filter:
                 beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
 
             if (tumor_alt == '---' or tumor_alt >= self.tumor_min_mismatch):
-                print >> hResult, (line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)  +"\t"+ str(tumor_other) +"\t"+ str(beta_01) +"\t"+ str(beta_mid) +"\t"+ str(beta_09))
+                print(line +"\t"+ str(tumor_ref)  +"\t"+ str(tumor_alt)
+                           +"\t"+ str(tumor_other) +"\t"+ str(beta_01) 
+                           +"\t"+ str(beta_mid) +"\t"+ str(beta_09), file=hResult)
             
         ####
         hResult.close()
@@ -415,6 +385,8 @@ class realignment_filter:
 
                 for idx in range(0, thread_num_mod): 
                     jobs[idx].join() 
+                    if jobs[idx].exitcode != 0:
+                        raise RuntimeError('There was an error!')
 
                 with open(output, 'w') as w:
                     if self.header_flag:
@@ -422,7 +394,7 @@ class realignment_filter:
                     for idx in range(1, thread_num_mod+1): 
                         with open(output +"."+ str(idx), 'r') as hin:
                             for line in hin:
-                                print >> w, line.rstrip('\n') 
+                                print(line.rstrip('\n'), file=w) 
 
             #
             # single thread
@@ -449,6 +421,8 @@ class realignment_filter:
 
                 for idx in range(0,thread_num_mod): 
                     jobs[idx].join() 
+                    if jobs[idx].exitcode != 0:
+                        raise RuntimeError('There was an error!')
 
                 with open(output, 'w') as w:
                     if self.header_flag:
@@ -456,7 +430,7 @@ class realignment_filter:
                     for idx in range(1,thread_num_mod+1): 
                         with open(output +"."+ str(idx), 'r') as hin:
                             for line in hin:
-                                print >> w, line.rstrip('\n') 
+                                print(line.rstrip('\n'), file=w)
 
             #
             # single thread
@@ -500,6 +474,7 @@ class realignment_filter:
         vcf_reader = vcf.Reader(filename = in_mutation_file)
         for record in vcf_reader:
             line_num = line_num + 1
+        vcf_reader.close()
 
         thread_num_mod = min(line_num, self.thread_num)
         if thread_num_mod == 0: thread_num_mod = 1
@@ -520,6 +495,7 @@ class realignment_filter:
                 vcf_writer = vcf.Writer(open(in_mutation_file +"."+str(split_index), 'w'), vcf_reader)
 
         vcf_writer.close()
+        vcf_reader.close()
         return thread_num_mod
 
 
@@ -540,7 +516,8 @@ class realignment_filter:
         new_keys = vcf_reader.formats.keys()
         sample_list = vcf_reader.samples
 
-        vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
+        hOUT = open(output, 'w')
+        vcf_writer = vcf.Writer(hOUT, vcf_reader)
 
         ####
         for record in vcf_reader:
@@ -592,6 +569,9 @@ class realignment_filter:
                 vcf_writer.write_record(new_record)
              
         ####
+        vcf_reader.close()
+        vcf_writer.close()
+        hOUT.close()
         tumor_align_file.close()
         normal_align_file.close()
 
@@ -672,6 +652,8 @@ class realignment_filter:
 
                 for idx in range(0, thread_num_mod): 
                     jobs[idx].join() 
+                    if jobs[idx].exitcode != 0:
+                        raise RuntimeError('There was an error!')
 
                 vcf_reader = vcf.Reader(filename = in_mutation_file)
                 self.add_meta_vcf(vcf_reader, True)
@@ -704,6 +686,8 @@ class realignment_filter:
 
                 for idx in range(0, thread_num_mod): 
                     jobs[idx].join() 
+                    if jobs[idx].exitcode != 0:
+                        raise RuntimeError('There was an error!')
 
                 vcf_reader = vcf.Reader(filename = in_mutation_file)
                 self.add_meta_vcf(vcf_reader, False)
