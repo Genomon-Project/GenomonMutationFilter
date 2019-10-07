@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 import os
 import re
@@ -5,8 +6,8 @@ import pysam
 import argparse
 import logging
 import subprocess
-from auto_vivification import auto_vivification
-import vcf_utils
+from . import auto_vivification as autov
+from . import vcf_utils
 
 #
 # Class definitions
@@ -43,8 +44,7 @@ class indel_filter:
 
         ####
         # print region
-        FNULL = open(os.devnull, 'w')
-        pileup = subprocess.Popen(cmd_list, stdout=subprocess.PIPE, stderr = FNULL)
+        pileup = subprocess.Popen(cmd_list, stdout=subprocess.PIPE)
         end_of_pipe = pileup.stdout
         for mpileup in end_of_pipe:
             # print mpileup.rstrip()
@@ -52,7 +52,11 @@ class indel_filter:
             #
             # Prepare mpileup data
             #
-            mp_list = str( mpileup.translate( None, '\n' ) ).split( '\t' )
+            # mp_list = str( mpileup.translate( None, '\n' ) ).split( '\t' )
+            if sys.version_info.major == 3:
+                mp_list = mpileup.decode().strip('\n').split( '\t' )
+            else:
+                mp_list = mpileup.strip('\n').split( '\t' )
             mp_list_len = len( mp_list )
             coordinate = mp_list[ 0:3 ]
 
@@ -79,7 +83,7 @@ class indel_filter:
             # 5th row(read bases),
             # 6th row(base quality)
             #
-            indel = auto_vivification()
+            indel = autov.auto_vivification()
 
             #
             # Look for deletion/insertion and save info in 'indel' dictionary
@@ -116,7 +120,7 @@ class indel_filter:
             # Remove '^.' and '$'
             #
             read_bases = self.remove_chr.sub( '', read_bases )
-            read_bases = read_bases.translate( None, '$' ) 
+            read_bases = read_bases.replace( '$', '' )
 
             #
             # Error check
@@ -142,18 +146,14 @@ class indel_filter:
                                 start_pos = int(start_pos) + 1
                                 end_pos = int(start_pos) + len((key.split('\t'))[3]) - 1 
 
-                            # print "m: " + str(start_pos) +"-"+ str(end_pos)
-                            # print "o: " + str(start) +"-"+ str(end)
-                            # print mismatch_count
-                            # print mismatch_rate
-
                             if ((start_pos - self.neighbor <= int(start) + 1 and int(start) + 1 <= self.neighbor + end_pos) 
                               or(start_pos - self.neighbor <= int(end)      and  int(end)       <= self.neighbor + end_pos)): 
 
                                 max_mismatch_count = mismatch_count
                                 max_mismatch_rate  = mismatch_rate
                                 
-        FNULL.close()
+        pileup.stdout.close()
+        pileup.wait()
         return (max_mismatch_count, max_mismatch_rate)
 
 
@@ -165,7 +165,7 @@ class indel_filter:
         if self.header_flag:
             header = srcfile.readline().rstrip('\n')  
             newheader = "indel_mismatch_count\tindel_mismatch_rate"
-            print >> hResult, (header +"\t"+ newheader)
+            print(header +"\t"+ newheader, file=hResult)
         
         for line in srcfile:
             line = line.rstrip()
@@ -177,10 +177,8 @@ class indel_filter:
             max_mismatch_count, max_mismatch_rate = self.filter_main(chr, start, end, ref, alt, in_bam)            
             
             ####
-            # print "mmc: " + str(max_mismatch_count)
-            # print "mm:  " + str(self.min_mismatch)
             if(max_mismatch_count <= self.min_mismatch or max_mismatch_rate <= self.af_thres):
-                print >> hResult, (line +"\t"+ str(max_mismatch_count) +"\t"+ str('{0:.3f}'.format(float(max_mismatch_rate)))) 
+                print(line +"\t"+ str(max_mismatch_count) +"\t"+ str('{0:.3f}'.format(float(max_mismatch_rate))), file=hResult) 
 
         ####
         hResult.close()
@@ -193,50 +191,54 @@ class indel_filter:
         import vcf
         import copy
 
-        vcf_reader = vcf.Reader(filename = in_mutation_file)
-        f_keys = vcf_reader.formats.keys() #it's an ordered dict
-        # add vcf header info
-        vcf_reader.formats['NI'] = vcf.parser._Format('NI', 1, 'Integer', "The number of indel-containing reads around ALT by the matched normal sample")
-        vcf_reader.formats['RI'] = vcf.parser._Format('RI', 1, 'Float', "The ratio of indel-containing reads around ALT by matched normal sample")
-        new_keys = vcf_reader.formats.keys()
-        sample_list = vcf_reader.samples
-
-        # handle output vcf file
-        vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
-
-        for record in vcf_reader:
-            # input file is annovar format (not zero-based number)
-            new_record = copy.deepcopy(record)
-            chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
-     
-            max_mismatch_count, max_mismatch_rate = self.filter_main(chr, start, end, ref, alt, in_bam)            
-            
-            if(max_mismatch_count <= self.min_mismatch or max_mismatch_rate <= self.af_thres):
-
-                # Add FPRMAT
-                new_record.FORMAT = new_record.FORMAT+":NI:RI"
-                ## tumor sample
-                sx = sample_list.index(tumor_sample)
-                new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
-                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
-                handy_dict = dict(zip(f_keys, f_vals))
-                handy_dict['NI'] = int(max_mismatch_count)
-                handy_dict['RI'] = float('{0:.3f}'.format(float(max_mismatch_rate)))
-                new_vals = [handy_dict[x] for x in new_keys]
-                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
-                ## normal sample
-                sx = sample_list.index(normal_sample)
-                new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
-                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
-                handy_dict = dict(zip(f_keys, f_vals))
-                handy_dict['NI'] = "."
-                handy_dict['RI'] = "."
-                new_vals = [handy_dict[x] for x in new_keys]
-                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
-
-                vcf_writer.write_record(new_record)
-
-        ####
-        vcf_writer.close()
+        with open(in_mutation_file, 'r') as hin:
+            vcf_reader = vcf.Reader(hin)
+            f_keys = vcf_reader.formats.keys() #it's an ordered dict
+            len_f_keys = len(f_keys)
+            # add vcf header info
+            vcf_reader.formats['NI'] = vcf.parser._Format('NI', 1, 'Integer', "The number of indel-containing reads around ALT by the matched normal sample")
+            vcf_reader.formats['RI'] = vcf.parser._Format('RI', 1, 'Float', "The ratio of indel-containing reads around ALT by matched normal sample")
+            new_keys = vcf_reader.formats.keys()
+            sample_list = vcf_reader.samples
+    
+            # handle output vcf file
+            hout = open(output, 'w')
+            vcf_writer = vcf.Writer(hout, vcf_reader)
+    
+            for record in vcf_reader:
+                # input file is annovar format (not zero-based number)
+                new_record = copy.deepcopy(record)
+                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
+         
+                max_mismatch_count, max_mismatch_rate = self.filter_main(chr, start, end, ref, alt, in_bam)            
+                
+                if(max_mismatch_count <= self.min_mismatch or max_mismatch_rate <= self.af_thres):
+    
+                    # Add FPRMAT
+                    new_record.FORMAT = new_record.FORMAT+":NI:RI"
+                    ## tumor sample
+                    sx = sample_list.index(tumor_sample)
+                    new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys)]
+                    handy_dict = dict(zip(f_keys, f_vals))
+                    handy_dict['NI'] = int(max_mismatch_count)
+                    handy_dict['RI'] = float('{0:.3f}'.format(float(max_mismatch_rate)))
+                    new_vals = [handy_dict[x] for x in new_keys]
+                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+                    ## normal sample
+                    sx = sample_list.index(normal_sample)
+                    new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys)]
+                    handy_dict = dict(zip(f_keys, f_vals))
+                    handy_dict['NI'] = "."
+                    handy_dict['RI'] = "."
+                    new_vals = [handy_dict[x] for x in new_keys]
+                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+    
+                    vcf_writer.write_record(new_record)
+    
+            ####
+            vcf_writer.close()
+            hout.close()
 
 

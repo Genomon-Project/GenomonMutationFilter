@@ -520,14 +520,11 @@ class Realignment_filter:
         with open(in_mutation_file, 'r') as hin:
             vcf_reader = vcf.Reader(hin)
             f_keys = vcf_reader.formats.keys() #it's an ordered dict
+            len_f_keys = len(f_keys)
             self.add_meta_vcf(vcf_reader, True)
             new_keys = vcf_reader.formats.keys()
             sample_list = vcf_reader.samples
             
-            len_f_keys = len(f_keys)
-            if sys.version_info.major == 3:
-                len_f_keys = len_f_keys - 3
-    
             hOUT = open(output, 'w')
             vcf_writer = vcf.Writer(hOUT, vcf_reader)
     
@@ -599,14 +596,12 @@ class Realignment_filter:
         with open(in_mutation_file, 'r') as hin:
             vcf_reader = vcf.Reader(hin)
             f_keys = vcf_reader.formats.keys() #it's an ordered dict
+            len_f_keys = len(f_keys)
             self.add_meta_vcf(vcf_reader, False)
             new_keys = vcf_reader.formats.keys()
             sample_list = vcf_reader.samples
     
-            len_f_keys = len(f_keys)
-            if sys.version_info.major == 3:
-                len_f_keys = len_f_keys - 3
-    
+
             hOUT = open(output, 'w')
             vcf_writer = vcf.Writer(hOUT, vcf_reader)
     
