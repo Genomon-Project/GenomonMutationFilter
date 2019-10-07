@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os, sys
 
 def vcf_fields2anno(chrom, pos_str, ref_sub, alt_sub):

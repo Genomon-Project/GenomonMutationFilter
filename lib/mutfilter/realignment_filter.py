@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 import os
 import re
@@ -471,11 +472,12 @@ class Realignment_filter:
 
         # count the number of lines
         line_num = 0
-        vcf_reader = vcf.Reader(filename = in_mutation_file)
+        hin = open(in_mutation_file, 'r')
+        vcf_reader = vcf.Reader(hin)
         for record in vcf_reader:
             line_num = line_num + 1
-        vcf_reader.close()
-
+        hin.close()
+        
         thread_num_mod = min(line_num, self.thread_num)
         if thread_num_mod == 0: thread_num_mod = 1
 
@@ -483,8 +485,10 @@ class Realignment_filter:
 
         current_line_num = 0
         split_index = 1
-        vcf_writer = vcf.Writer(open(in_mutation_file +"."+str(split_index), 'w'), vcf_reader)
-        vcf_reader = vcf.Reader(filename = in_mutation_file)
+        hout = open(in_mutation_file +"."+str(split_index), 'w')
+        hin = open(in_mutation_file, 'r')
+        vcf_reader = vcf.Reader(hin)
+        vcf_writer = vcf.Writer(hout, vcf_reader)
         for record in vcf_reader:
             vcf_writer.write_record(record)
             current_line_num = current_line_num + 1
@@ -492,10 +496,13 @@ class Realignment_filter:
                 current_line_num = 0
                 split_index = split_index + 1
                 vcf_writer.close()
-                vcf_writer = vcf.Writer(open(in_mutation_file +"."+str(split_index), 'w'), vcf_reader)
+                hout.close()
+                hout = open(in_mutation_file +"."+str(split_index), 'w')
+                vcf_writer = vcf.Writer(hout, vcf_reader)
 
         vcf_writer.close()
-        vcf_reader.close()
+        hout.close()
+        hin.close()
         return thread_num_mod
 
 
@@ -510,66 +517,70 @@ class Realignment_filter:
             tumor_align_file = pysam.AlignmentFile(in_tumor_bam, "rb")
             normal_align_file = pysam.AlignmentFile(in_normal_bam, "rb")
 
-        vcf_reader = vcf.Reader(filename = in_mutation_file)
-        f_keys = vcf_reader.formats.keys() #it's an ordered dict
-        self.add_meta_vcf(vcf_reader, True)
-        new_keys = vcf_reader.formats.keys()
-        sample_list = vcf_reader.samples
-
-        hOUT = open(output, 'w')
-        vcf_writer = vcf.Writer(hOUT, vcf_reader)
-
-        ####
-        for record in vcf_reader:
-            new_record = copy.deepcopy(record)
-            chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
-               
-            tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('.','.','.','.','.','.','.')
-            if int(start) >= int(self.window):
-                self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
-
-                if tumor_align_file.count(chr,start,end) < self.max_depth and is_conv:
-                    tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
-                
-                if normal_align_file.count(chr,start,end) < self.max_depth and is_conv:
-                    normal_ref, normal_alt, normal_other = self.blat_read_count(normal_align_file, chr, start, end, output, thread_idx)
-
-            if tumor_ref != '.' and  tumor_alt != '.' and  normal_ref != '.' and  normal_alt != '.':
-                log10_fisher_pvalue = self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt)
-
-            if  ((tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch) and
-                (normal_alt == '.' or normal_alt <= self.normal_max_mismatch)):
-
-                # Add INFO
-                new_record.INFO['FPR'] = float(log10_fisher_pvalue)
-
-                # Add FPRMAT
-                new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
-                ## tumor sample
-                sx = sample_list.index(tumor_sample)
-                new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
-                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
-                handy_dict = dict(zip(f_keys, f_vals))
-                handy_dict['NNR'] = tumor_ref
-                handy_dict['NAR'] = tumor_alt
-                handy_dict['NOR'] = tumor_other
-                new_vals = [handy_dict[x] for x in new_keys]
-                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
-                ## normal sample
-                sx = sample_list.index(normal_sample)
-                new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
-                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
-                handy_dict = dict(zip(f_keys, f_vals))
-                handy_dict['NNR'] = normal_ref
-                handy_dict['NAR'] = normal_alt
-                handy_dict['NOR'] = normal_other
-                new_vals = [handy_dict[x] for x in new_keys]
-                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
-
-                vcf_writer.write_record(new_record)
+        with open(in_mutation_file, 'r') as hin:
+            vcf_reader = vcf.Reader(hin)
+            f_keys = vcf_reader.formats.keys() #it's an ordered dict
+            self.add_meta_vcf(vcf_reader, True)
+            new_keys = vcf_reader.formats.keys()
+            sample_list = vcf_reader.samples
+            
+            len_f_keys = len(f_keys)
+            if sys.version_info.major == 3:
+                len_f_keys = len_f_keys - 3
+    
+            hOUT = open(output, 'w')
+            vcf_writer = vcf.Writer(hOUT, vcf_reader)
+    
+            ####
+            for record in vcf_reader:
+                new_record = copy.deepcopy(record)
+                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
+                   
+                tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('.','.','.','.','.','.','.')
+                if int(start) >= int(self.window):
+                    self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
+    
+                    if tumor_align_file.count(chr,start,end) < self.max_depth and is_conv:
+                        tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
+                    
+                    if normal_align_file.count(chr,start,end) < self.max_depth and is_conv:
+                        normal_ref, normal_alt, normal_other = self.blat_read_count(normal_align_file, chr, start, end, output, thread_idx)
+    
+                if tumor_ref != '.' and  tumor_alt != '.' and  normal_ref != '.' and  normal_alt != '.':
+                    log10_fisher_pvalue = self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt)
+    
+                if  ((tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch) and
+                    (normal_alt == '.' or normal_alt <= self.normal_max_mismatch)):
+    
+                    # Add INFO
+                    new_record.INFO['FPR'] = float(log10_fisher_pvalue)
+    
+                    # Add FPRMAT
+                    new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
+                    ## tumor sample
+                    sx = sample_list.index(tumor_sample)
+                    new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys)]
+                    handy_dict = dict(zip(f_keys, f_vals))
+                    handy_dict['NNR'] = tumor_ref
+                    handy_dict['NAR'] = tumor_alt
+                    handy_dict['NOR'] = tumor_other
+                    new_vals = [handy_dict[x] for x in new_keys]
+                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+                    ## normal sample
+                    sx = sample_list.index(normal_sample)
+                    new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys)]
+                    handy_dict = dict(zip(f_keys, f_vals))
+                    handy_dict['NNR'] = normal_ref
+                    handy_dict['NAR'] = normal_alt
+                    handy_dict['NOR'] = normal_other
+                    new_vals = [handy_dict[x] for x in new_keys]
+                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+    
+                    vcf_writer.write_record(new_record)
              
         ####
-        vcf_reader.close()
         vcf_writer.close()
         hOUT.close()
         tumor_align_file.close()
@@ -585,50 +596,58 @@ class Realignment_filter:
         else:
             tumor_align_file = pysam.AlignmentFile(in_tumor_bam, "rb")
 
-        vcf_reader = vcf.Reader(filename = in_mutation_file)
-        f_keys = vcf_reader.formats.keys() #it's an ordered dict
-        self.add_meta_vcf(vcf_reader, False)
-        new_keys = vcf_reader.formats.keys()
-        sample_list = vcf_reader.samples
-
-        vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
-
+        with open(in_mutation_file, 'r') as hin:
+            vcf_reader = vcf.Reader(hin)
+            f_keys = vcf_reader.formats.keys() #it's an ordered dict
+            self.add_meta_vcf(vcf_reader, False)
+            new_keys = vcf_reader.formats.keys()
+            sample_list = vcf_reader.samples
+    
+            len_f_keys = len(f_keys)
+            if sys.version_info.major == 3:
+                len_f_keys = len_f_keys - 3
+    
+            hOUT = open(output, 'w')
+            vcf_writer = vcf.Writer(hOUT, vcf_reader)
+    
+            ####
+            for record in vcf_reader:
+                new_record = copy.deepcopy(record)
+                # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
+                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
+                    
+                tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('','','','','','')
+                   
+                if tumor_align_file.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
+                    self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
+                    tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
+                    beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
+    
+                if (tumor_alt == '' or tumor_alt >= self.tumor_min_mismatch):
+    
+                    # Add INFO
+                    new_record.INFO['B1R'] = float(beta_01)
+                    new_record.INFO['BMR'] = float(beta_mid)
+                    new_record.INFO['B9R'] = float(beta_09)
+    
+                    # Add FPRMAT
+                    new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
+                    ## tumor sample
+                    sx = sample_list.index(tumor_sample)
+                    new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys)]
+                    handy_dict = dict(zip(f_keys, f_vals))
+                    handy_dict['NNR'] = tumor_ref
+                    handy_dict['NAR'] = tumor_alt
+                    handy_dict['NOR'] = tumor_other
+                    new_vals = [handy_dict[x] for x in new_keys]
+                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+    
+                    vcf_writer.write_record(new_record)
+                 
         ####
-        for record in vcf_reader:
-            new_record = copy.deepcopy(record)
-            # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
-            chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
-                
-            tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('','','','','','')
-               
-            if tumor_align_file.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
-                self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
-                tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
-                beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
-
-            if (tumor_alt == '' or tumor_alt >= self.tumor_min_mismatch):
-
-                # Add INFO
-                new_record.INFO['B1R'] = float(beta_01)
-                new_record.INFO['BMR'] = float(beta_mid)
-                new_record.INFO['B9R'] = float(beta_09)
-
-                # Add FPRMAT
-                new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
-                ## tumor sample
-                sx = sample_list.index(tumor_sample)
-                new_record.samples[sx].data = collections.namedtuple('CallData', new_keys)
-                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
-                handy_dict = dict(zip(f_keys, f_vals))
-                handy_dict['NNR'] = tumor_ref
-                handy_dict['NAR'] = tumor_alt
-                handy_dict['NOR'] = tumor_other
-                new_vals = [handy_dict[x] for x in new_keys]
-                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
-
-                vcf_writer.write_record(new_record)
-             
-        ####
+        vcf_writer.close()
+        hOUT.close()
         tumor_align_file.close()
 
 
@@ -655,14 +674,17 @@ class Realignment_filter:
                     if jobs[idx].exitcode != 0:
                         raise RuntimeError('There was an error!')
 
-                vcf_reader = vcf.Reader(filename = in_mutation_file)
-                self.add_meta_vcf(vcf_reader, True)
-                vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
-                for idx in range(1, thread_num_mod+1): 
-                    vcf_reader_tmp = vcf.Reader(filename = output +"."+ str(idx))
-                    for record in vcf_reader_tmp:
-                        vcf_writer.write_record(record)
-                vcf_writer.close()
+                with open(in_mutation_file, 'r') as hin:
+                    vcf_reader = vcf.Reader(hin)
+                    self.add_meta_vcf(vcf_reader, True)
+                    with open(output, 'w') as hout:
+                        vcf_writer = vcf.Writer(hout, vcf_reader)
+                        for idx in range(1, thread_num_mod+1): 
+                            with open(output +"."+ str(idx), 'r') as hin_tmp:
+                                vcf_reader_tmp = vcf.Reader(hin_tmp)
+                                for record in vcf_reader_tmp:
+                                    vcf_writer.write_record(record)
+                    vcf_writer.close()
 
             #
             # single thread
@@ -689,14 +711,17 @@ class Realignment_filter:
                     if jobs[idx].exitcode != 0:
                         raise RuntimeError('There was an error!')
 
-                vcf_reader = vcf.Reader(filename = in_mutation_file)
-                self.add_meta_vcf(vcf_reader, False)
-                vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
-                for idx in range(1, thread_num_mod+1): 
-                    vcf_reader_tmp = vcf.Reader(filename = output +"."+ str(idx))
-                    for record in vcf_reader_tmp:
-                        vcf_writer.write_record(record)
-                vcf_writer.close()
+                with open(in_mutation_file, 'r') as hin:
+                    vcf_reader = vcf.Reader(hin)
+                    self.add_meta_vcf(vcf_reader, False)
+                    with open(output, 'w') as hout:
+                        vcf_writer = vcf.Writer(hout, vcf_reader)
+                        for idx in range(1, thread_num_mod+1): 
+                            with open(output +"."+ str(idx), 'r') as hin_tmp:
+                                vcf_reader_tmp = vcf.Reader(hin_tmp)
+                                for record in vcf_reader_tmp:
+                                    vcf_writer.write_record(record)
+                    vcf_writer.close()
 
             #
             # single thread
