@@ -7,7 +7,7 @@ import argparse
 import logging
 from lib.mutfilter import realignment_filter as rf
 from lib.mutfilter import indel_filter as idf
-from blib.mutfilter import breakpoint_filter as brf
+from lib.mutfilter import breakpoint_filter as brf
 from lib.mutfilter import simple_repeat_filter as sif
 
 
@@ -32,7 +32,7 @@ def run_indel_filter(arg):
     is_anno = True if arg.print_format == 'anno' else False
 
     logging.info( 'indel filter start')
-    indelf = idf.indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch, arg.af_thres, arg.neighbor, arg.header_flag, arg.samtools_path, arg.samtools_params, arg.ref_genome)
+    indelf = idf.Indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch, arg.af_thres, arg.neighbor, arg.header_flag, arg.samtools_path, arg.samtools_params, arg.ref_genome)
     if is_anno == True:
         indelf.filter(arg.target_mutation_file, arg.bam2, arg.output)
     else:
@@ -45,7 +45,7 @@ def run_breakpoint_filter(arg):
     is_anno = True if arg.print_format == 'anno' else False
 
     logging.info( 'breakpoint filter start')
-    bpf = brf.breakpoint_filter(arg.max_depth, arg.min_clip_size, arg.junc_num_thres, arg.mapq_thres, arg.header_flag, arg.exclude_sam_flags, arg.ref_genome)
+    bpf = brf.Breakpoint_filter(arg.max_depth, arg.min_clip_size, arg.junc_num_thres, arg.mapq_thres, arg.header_flag, arg.exclude_sam_flags, arg.ref_genome)
     if is_anno == True:
         bpf.filter(arg.target_mutation_file, arg.bam2, arg.output)
     else:

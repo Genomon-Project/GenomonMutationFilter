@@ -30,7 +30,7 @@ class TestIndel(unittest.TestCase):
         samtools_params = '-q 20 -BQ0 -d 10000000'
         ref_genome = cur_dir + "/../data/GRCh37.fa"
         
-        indelf = idf.indel_filter(search_length, min_depth, 
+        indelf = idf.Indel_filter(search_length, min_depth, 
         min_mismatch, af_thres, neighbor, header_flag, 
         samtools_path, samtools_params, ref_genome)
         
@@ -56,7 +56,7 @@ class TestIndel(unittest.TestCase):
         samtools_params = '-q 20 -BQ0 -d 10000000 --ff UNMAP,SECONDARY,QCFAIL,DUP'
         ref_genome = cur_dir + "/../data/GRCh37.fa"
         
-        indelf = idf.indel_filter(search_length, min_depth, 
+        indelf = idf.Indel_filter(search_length, min_depth, 
         min_mismatch, af_thres, neighbor, header_flag, 
         samtools_path, samtools_params, ref_genome)
         
@@ -82,7 +82,7 @@ class TestIndel(unittest.TestCase):
         samtools_params = '-q 20 -BQ0 -d 10000000 --ff UNMAP,SECONDARY,QCFAIL,DUP'
         ref_genome = cur_dir + "/../data/GRCh37.fa"
         
-        indelf = idf.indel_filter(search_length, min_depth, 
+        indelf = idf.Indel_filter(search_length, min_depth, 
         min_mismatch, af_thres, neighbor, header_flag, 
         samtools_path, samtools_params, ref_genome)
         
@@ -102,12 +102,12 @@ class TestIndel(unittest.TestCase):
         min_mismatch = 100000
         af_thres = 1
         neighbor = 5
-        header_flag = True
+        header_flag = False
         samtools_path = self.samtools
         samtools_params = '-q 20 -BQ0 -d 10000000 --ff UNMAP,SECONDARY,QCFAIL,DUP'
         ref_genome = cur_dir + "/../data/GRCh37.fa"
         
-        indelf = idf.indel_filter(search_length, min_depth, 
+        indelf = idf.Indel_filter(search_length, min_depth, 
         min_mismatch, af_thres, neighbor, header_flag, 
         samtools_path, samtools_params, ref_genome)
         
@@ -136,7 +136,7 @@ class TestIndel(unittest.TestCase):
         samtools_params = '-q 20 -BQ0 -d 10000000'
         ref_genome = cur_dir + "/../data/GRCh37.fa"
         
-        indelf = idf.indel_filter(search_length, min_depth, 
+        indelf = idf.Indel_filter(search_length, min_depth, 
         min_mismatch, af_thres, neighbor, header_flag, 
         samtools_path, samtools_params, ref_genome)
         
@@ -164,7 +164,7 @@ class TestIndel(unittest.TestCase):
         samtools_params = '-q 20 -BQ0 -d 10000000 --ff UNMAP,SECONDARY,QCFAIL,DUP'
         ref_genome = cur_dir + "/../data/GRCh37.fa"
         
-        indelf = idf.indel_filter(search_length, min_depth, 
+        indelf = idf.Indel_filter(search_length, min_depth, 
         min_mismatch, af_thres, neighbor, header_flag, 
         samtools_path, samtools_params, ref_genome)
         
@@ -192,7 +192,7 @@ class TestIndel(unittest.TestCase):
         samtools_params = '-q 20 -BQ0 -d 10000000 --ff UNMAP,SECONDARY,QCFAIL,DUP'
         ref_genome = cur_dir + "/../data/GRCh37.fa"
         
-        indelf = idf.indel_filter(search_length, min_depth, 
+        indelf = idf.Indel_filter(search_length, min_depth, 
         min_mismatch, af_thres, neighbor, header_flag, 
         samtools_path, samtools_params, ref_genome)
         
@@ -215,12 +215,12 @@ class TestIndel(unittest.TestCase):
         min_mismatch = 100000
         af_thres = 1
         neighbor = 5
-        header_flag = True
+        header_flag = False
         samtools_path = self.samtools
         samtools_params = '-q 20 -BQ0 -d 10000000 --ff UNMAP,SECONDARY,QCFAIL,DUP'
         ref_genome = cur_dir + "/../data/GRCh37.fa"
         
-        indelf = idf.indel_filter(search_length, min_depth, 
+        indelf = idf.Indel_filter(search_length, min_depth, 
         min_mismatch, af_thres, neighbor, header_flag, 
         samtools_path, samtools_params, ref_genome)
         

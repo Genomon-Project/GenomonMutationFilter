@@ -12,7 +12,7 @@ from . import vcf_utils
 #
 # Class definitions
 #
-class indel_filter:
+class Indel_filter:
 
     def __init__(self, search_length, min_depth, min_mismatch, af_thres, neighbor, header_flag, samtools_path, samtools_params, reference_genome):
         self.reference_genome = reference_genome
