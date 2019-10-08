@@ -58,7 +58,7 @@ def run_simple_repeat_filter(arg):
     is_anno = True if arg.print_format == 'anno' else False
 
     logging.info( 'simple repeat filter start')
-    simplef = sif.simple_repeat_filter(arg.simple_repeat_db, arg.header_flag)
+    simplef = sif.Simple_repeat_filter(arg.simple_repeat_db, arg.header_flag)
     if is_anno == True:
         simplef.filter(arg.target_mutation_file, arg.output)
     else:

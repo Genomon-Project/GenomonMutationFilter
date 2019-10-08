@@ -1,14 +1,15 @@
+from __future__ import print_function
 import sys
 import os
 import re
 import logging
 import pysam
-import vcf_utils
+from . import vcf_utils
 
 #
 # Class definitions
 #
-class simple_repeat_filter:
+class Simple_repeat_filter:
 
 
     def __init__(self, simple_repeat_db, header_flag):
@@ -17,7 +18,7 @@ class simple_repeat_filter:
 
 
     def write_result_file(self, line, file_handle, db_pos, db_seq):
-        print >> file_handle, (line + "\t" +db_pos+ "\t" +db_seq)
+        print(line + "\t" +db_pos+ "\t" +db_seq, file=file_handle)
 
 
     def filter_main(self, chr, start, end, tb):
@@ -58,7 +59,7 @@ class simple_repeat_filter:
         if self.header_flag:
             header = srcfile.readline().rstrip('\n')  
             newheader = "simple_repeat_pos\tsimple_repeat_seq"
-            print >> hResult, (header +"\t"+ newheader)
+            print(header +"\t"+ newheader, file=hResult)
 
         for line in srcfile:
             line = line.rstrip()
@@ -85,21 +86,22 @@ class simple_repeat_filter:
 
         tb = pysam.TabixFile(self.simple_repeat_db)
 
-        vcf_reader = vcf.Reader(filename = in_mutation_file)
-        vcf_reader.infos['SR'] = vcf.parser._Info('SR', 0, 'Flag', "Simple repeat region","MutationFilter","v0.2.0")
+        with open(in_mutation_file, 'r') as hin:
+            vcf_reader = vcf.Reader(hin)
+            vcf_reader.infos['SR'] = vcf.parser._Info('SR', 0, 'Flag', "Simple repeat region","MutationFilter","v0.2.0")
+    
+            # handle output vcf file
+            vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
+    
+            for record in vcf_reader:
+    
+                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
+                db_pos, dbseq = self.filter_main(chr,start,end,tb)
+                
+                if not db_pos == "":
+                    # Add INFO
+                    record.INFO['SR'] = True
+                vcf_writer.write_record(record)
 
-        # handle output vcf file
-        vcf_writer = vcf.Writer(open(output, 'w'), vcf_reader)
-
-        for record in vcf_reader:
-
-            chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
-            db_pos, dbseq = self.filter_main(chr,start,end,tb)
-            
-            if not db_pos == "":
-                # Add INFO
-                record.INFO['SR'] = True
-            vcf_writer.write_record(record)
-
-        vcf_writer.close()
+            vcf_writer.close()
 
