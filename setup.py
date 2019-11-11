@@ -11,7 +11,7 @@ def get_version():
     raise ValueError('Could not find version.')
 
 setup(
-      name='fisher',
+      name='genomon_mutation_filter',
       version=get_version(),
       description="Python programs for filtering mutation results.",
       long_description="""""",
