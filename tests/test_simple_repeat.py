@@ -3,7 +3,9 @@
 import sys
 import unittest
 import os, tempfile, shutil, filecmp
-from lib.mutfilter import simple_repeat_filter as sif
+import subprocess
+from genomon_mutation_filter import simple_repeat_filter as sif
+import genomon_mutation_filter
 
 class TestSimpleRepeat(unittest.TestCase):
 
@@ -74,6 +76,57 @@ class TestSimpleRepeat(unittest.TestCase):
         self.assertTrue(filecmp.cmp(output, answer_file, shallow=False))
         
 
+
+    def test3_1(self):
+        
+        cmd = ['mutfilter', '--version']
+        subprocess.check_call(cmd)
+        
+        
+    def test3_2(self):
+        
+        cmd = ['mutfilter', 'simplerepeat', '--help']
+        subprocess.check_call(cmd)
+        
+        
+    def test3_3(self):
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        simple_repeat_db = cur_dir + "/../data/simpleRepeat.bed.gz"
+        output = cur_dir + "/../data/5929_small_simple_result_test3_1.txt"
+        target_mutation_file = cur_dir + "/../data/5929_small_mutation_result_test2.txt"
+
+        cmd = ['mutfilter', 'simplerepeat',
+            '-t', target_mutation_file,
+            '-o', output,
+            '-S', simple_repeat_db,
+            '--header']
+        
+        subprocess.check_call(cmd)
+
+        answer_file = cur_dir + "/../data/5929_small_simple_result_answer_test1_1.txt"
+        self.assertTrue(filecmp.cmp(output, answer_file, shallow=False))
+
+
+    def test4_1(self):
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        simple_repeat_db = cur_dir + "/../data/simpleRepeat.bed.gz"
+        output = cur_dir + "/../data/5929_small_simple_result_test4_1.txt"
+        target_mutation_file = cur_dir + "/../data/5929_small_mutation_result_test2.txt"
+
+        cmd = ['simplerepeat',
+            '-t', target_mutation_file,
+            '-o', output,
+            '-S', simple_repeat_db,
+            '--header']
+        
+        parser = genomon_mutation_filter.parser.create_parser()
+        args = parser.parse_args(cmd)
+        args.func(args)
+
+        answer_file = cur_dir + "/../data/5929_small_simple_result_answer_test1_1.txt"
+        self.assertTrue(filecmp.cmp(output, answer_file, shallow=False))
 
 if __name__ == "__main__":
     unittest.main()

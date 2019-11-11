@@ -3,7 +3,9 @@
 import sys
 import unittest
 import os, tempfile, shutil, filecmp
-from lib.mutfilter import breakpoint_filter as breakf
+import subprocess
+from genomon_mutation_filter import breakpoint_filter as breakf
+import genomon_mutation_filter
 
 class TestBreakpoint(unittest.TestCase):
 
@@ -201,6 +203,81 @@ class TestBreakpoint(unittest.TestCase):
         with self.assertRaises(ValueError) as er:
             bpf.filter_vcf(target_mutation_file, bam2, output, tumor_sample, normal_sample)
         
+        
+    def test3_1(self):
+        
+        cmd = ['mutfilter', '--version']
+        subprocess.check_call(cmd)
+        
+        
+    def test3_2(self):
+        
+        cmd = ['mutfilter', 'breakpoint', '--help']
+        subprocess.check_call(cmd)
+
+
+    def test3_3(self):
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        max_depth = '1000'
+        min_clip_size = '20'
+        junc_num_thres = '0'
+        mapq_thres = '10'
+        exclude_sam_flags = '3332'
+        ref_genome = cur_dir + "/../data/GRCh37.fa"
+        bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
+        output = cur_dir + "/../data/5929_small_breakpoint_result_test3_1.txt"
+        target_mutation_file = cur_dir + "/../data/5929_small_mutation_result_test1.txt"
+
+        cmd = ['mutfilter', 'breakpoint',
+            '-t', target_mutation_file,
+            '-2', bam2,
+            '-o', output,
+            '-r', ref_genome,
+            '-d', max_depth,
+            '-c', min_clip_size,
+            '-j', junc_num_thres,
+            '-m', mapq_thres,
+            '-F', exclude_sam_flags,
+            '--header']
+        
+        subprocess.check_call(cmd)
+
+        answer_file = cur_dir + "/../data/5929_small_breakpoint_result_answer_test1_1.txt"
+        self.assertTrue(filecmp.cmp(output, answer_file, shallow=False))
+
+
+    def test4_1(self):
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        max_depth = '1000'
+        min_clip_size = '20'
+        junc_num_thres = '0'
+        mapq_thres = '10'
+        exclude_sam_flags = '3332'
+        ref_genome = cur_dir + "/../data/GRCh37.fa"
+        bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
+        output = cur_dir + "/../data/5929_small_breakpoint_result_test4_1.txt"
+        target_mutation_file = cur_dir + "/../data/5929_small_mutation_result_test1.txt"
+
+        cmd = ['breakpoint',
+            '-t', target_mutation_file,
+            '-2', bam2,
+            '-o', output,
+            '-r', ref_genome,
+            '-d', max_depth,
+            '-c', min_clip_size,
+            '-j', junc_num_thres,
+            '-m', mapq_thres,
+            '-F', exclude_sam_flags,
+            '--header']
+        
+        parser = genomon_mutation_filter.parser.create_parser()
+        args = parser.parse_args(cmd)
+        args.func(args)
+
+        answer_file = cur_dir + "/../data/5929_small_breakpoint_result_answer_test1_1.txt"
+        self.assertTrue(filecmp.cmp(output, answer_file, shallow=False))
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,10 +3,15 @@
 import sys
 import unittest
 import os, tempfile, shutil, filecmp
+import subprocess
 # from lib.mutfilter import realignment_filter as rf
-from lib.mutfilter import realignment_filter as rf
+from genomon_mutation_filter import realignment_filter as rf
+import genomon_mutation_filter
 
 class TestRealignment(unittest.TestCase):
+
+    def setUp(self):
+        self.blat = '/home/ubuntu/environment/tools/blat_linux.x86_64.v369/blat'
 
     ######################################
     # Tumor/Normal Pair, Annoformat
@@ -19,7 +24,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 500
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -46,7 +51,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -73,7 +78,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -100,7 +105,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = False
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -127,7 +132,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = False
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -155,7 +160,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 10
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -186,7 +191,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 500
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -213,7 +218,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -240,7 +245,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -267,7 +272,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = False
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -294,7 +299,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = False
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -321,7 +326,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 10
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -351,7 +356,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 500
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -380,7 +385,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 500
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -409,7 +414,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 500
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -438,7 +443,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 500
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = False
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -467,7 +472,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 500
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = False
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -497,7 +502,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 10
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -529,7 +534,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 500
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -558,7 +563,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -587,7 +592,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -616,7 +621,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = False
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -646,7 +651,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 5
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = False
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -675,7 +680,7 @@ class TestRealignment(unittest.TestCase):
         normal_max_mismatch = 100000
         window_size = 200
         score_difference = 10
-        blat_path = "blat"
+        blat_path = self.blat
         header_flag = True
         max_depth = 5000
         exclude_sam_flags = 3328
@@ -696,6 +701,88 @@ class TestRealignment(unittest.TestCase):
         answer_file = cur_dir + "/../data/5929_small_realignment_result_answer_test4_6.txt"
         self.assertTrue(filecmp.cmp(output, answer_file, shallow=False))
         
+    
+    def test5_1(self):
+        
+        cmd = ['mutfilter', '--version']
+        subprocess.check_call(cmd)
+        
+        
+    def test5_2(self):
+        
+        cmd = ['mutfilter', 'realignment', '--help']
+        subprocess.check_call(cmd)
+
+
+    def test5_3(self):
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        ref_genome = cur_dir + "/../data/GRCh37.fa"
+        tumor_min_mismatch = '0'
+        normal_max_mismatch = '100000'
+        window_size = '500'
+        score_difference = '5'
+        blat_path = self.blat
+        max_depth = '5000'
+        exclude_sam_flags = '3328'
+        thread_num = '1'
+        bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
+        bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
+        output = cur_dir + "/../data/5929_small_realignment_result_test3_1.txt"
+        target_mutation_file = cur_dir + "/../data/5929_small_mutation_result_test1.txt"
+
+        cmd = ['mutfilter', 'realignment',
+            '-t', target_mutation_file,
+            '-1', bam1,
+            '-2', bam2,
+            '-o', output,
+            '-r', ref_genome,
+            '-b', self.blat,
+            '-m', tumor_min_mismatch,
+            '-M', normal_max_mismatch,
+            '-w', window_size,
+            '-s', score_difference,
+            '-d', max_depth,
+            '-F', exclude_sam_flags,
+            '-T', thread_num,
+            '--header']
+        
+        subprocess.check_call(cmd)
+
+        answer_file = cur_dir + "/../data/5929_small_realignment_result_answer_test1_1.txt"
+        self.assertTrue(filecmp.cmp(output, answer_file, shallow=False))
+
+    ######################################
+    # Tumor/Normal Pair, Execute
+    ######################################
+    
+    def test6_1(self):
+        
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+
+        ref_genome = cur_dir + "/../data/GRCh37.fa"
+        tumor_min_mismatch = 0
+        normal_max_mismatch = 100000
+        window_size = 500
+        score_difference = 5
+        blat_path = self.blat
+        header_flag = True
+        max_depth = 5000
+        exclude_sam_flags = 3328
+        thread_num = 1
+        
+        bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
+        bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
+        output = cur_dir + "/../data/5929_small_realignment_result_test6_1.txt"
+        target_mutation_file = cur_dir + "/../data/5929_small_mutation_result_test1.txt"
+        answer_file = cur_dir + "/../data/5929_small_realignment_result_answer_test1_1.txt"
+        
+        parser = genomon_mutation_filter.parser.create_parser()
+        args = parser.parse_args(["realignment", "-1", bam1, "-2", bam2, "-t", target_mutation_file, "-o", output, "-r", ref_genome, "-b", blat_path, "-m", str(tumor_min_mismatch),  "-M", str(normal_max_mismatch), "-s", str(score_difference), "-w", str(window_size), "-d", str(max_depth), "-F", str(exclude_sam_flags), "--header"])
+        args.func(args)
+        self.assertTrue(filecmp.cmp(output, answer_file, shallow=False))
+
+
 if __name__ == "__main__":
     unittest.main()
 
