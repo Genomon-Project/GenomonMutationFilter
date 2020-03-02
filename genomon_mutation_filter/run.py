@@ -5,10 +5,10 @@ import os
 import math
 import argparse
 import logging
-from lib.mutfilter import realignment_filter as rf
-from lib.mutfilter import indel_filter as idf
-from lib.mutfilter import breakpoint_filter as brf
-from lib.mutfilter import simple_repeat_filter as sif
+from . import realignment_filter as rf
+from . import indel_filter as idf
+from . import breakpoint_filter as brf
+from . import simple_repeat_filter as sif
 
 
 #
