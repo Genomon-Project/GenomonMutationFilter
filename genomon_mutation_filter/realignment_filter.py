@@ -13,13 +13,14 @@ import collections
 import vcf
 import copy
 import multiprocessing
+import edlib
 
 #
 # Class definitions
 #
 class Realignment_filter:
 
-    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth, exclude_sam_flags, thread_num):
+    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat):
         self.reference_genome = referenceGenome
         self.window = search_length
         self.score_difference = score_difference
@@ -31,6 +32,7 @@ class Realignment_filter:
         self.max_depth = max_depth
         self.exclude_sam_flags = exclude_sam_flags
         self.thread_num = thread_num
+        self.uses_blat = uses_blat
      
     
     ############################################################
@@ -194,12 +196,8 @@ class Realignment_filter:
 
         return([len(set(numRef)), len(set(numAlt)), len(set(numOther))])
     
-
     ############################################################
     def blat_read_count(self, samfile,chr,start,end,output, thread_idx):
-
-        # extract short reads from tumor sequence data around the candidate
-        self.extractRead(samfile,chr,start,end,output + ".tmp.fa")
         ref, alt, other = 0, 0, 0
         if os.path.getsize(output + ".tmp.fa") > 0: 
             # alignment tumor short reads to the reference and alternative sequences
@@ -211,6 +209,38 @@ class Realignment_filter:
             ref, alt, other = self.summarizeRefAlt(output + ".tmp.psl")
         return (ref, alt, other)
 
+    ############################################################
+    def edlib_read_count(self, samfile, chr, start, end, output):
+        refalt = [None, None]
+        with open(output + ".tmp.refalt.fa") as r:
+            for (tname, seq) in zip(r, r):
+                refalt[tname.rstrip().endswith('_alt')] = seq.rstrip()
+        ref, alt = refalt
+
+        refs = set(); alts = set(); others = set()
+        with open(output + ".tmp.fa") as r:
+            for (qname, seq) in zip(r, r):
+                qname = re.sub(r'^>(.*)/[12]$', r'\1', qname.rstrip())
+                seq = seq.rstrip()
+                ref_nm = edlib.align(seq, ref, mode="HW", task="path")['editDistance']
+                alt_nm = edlib.align(seq, alt, mode="HW", task="path")['editDistance']
+                if ref_nm < alt_nm:
+                    refs.add(qname)
+                elif ref_nm > alt_nm:
+                    alts.add(qname)
+                else:
+                    others.add(qname)
+        return len(refs), len(alts), len(others)
+
+    ############################################################
+    def count_reads(self, samfile, chr, start, end, output, thread_idx):
+        # extract short reads from tumor sequence data around the candidate
+        self.extractRead(samfile,chr,start,end,output + ".tmp.fa")
+
+        if self.uses_blat:
+            return self.blat_read_count(samfile, chr, start, end, output, thread_idx)
+        else:
+            return self.edlib_read_count(samfile, chr, start, end, output)
 
     ############################################################
     def calc_fisher_pval(self, tumor_ref, normal_ref, tumor_alt, normal_alt):
@@ -301,10 +331,10 @@ class Realignment_filter:
                 self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
 
                 if tumor_align_file.count(chr,start,end) < self.max_depth:
-                    tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
+                    tumor_ref, tumor_alt, tumor_other = self.count_reads(tumor_align_file, chr, start, end, output, thread_idx)
 
                 if normal_align_file.count(chr,start,end) < self.max_depth:
-                    normal_ref, normal_alt, normal_other = self.blat_read_count(normal_align_file, chr, start, end, output, thread_idx)
+                    normal_ref, normal_alt, normal_other = self.count_reads(normal_align_file, chr, start, end, output, thread_idx)
 
                 if tumor_ref != '---' and  tumor_alt != '---' and  normal_ref != '---' and  normal_alt != '---':
                     log10_fisher_pvalue = self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt)
@@ -352,7 +382,7 @@ class Realignment_filter:
             if tumor_align_file.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
 
                 self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
-                tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
+                tumor_ref, tumor_alt, tumor_other = self.count_reads(tumor_align_file, chr, start, end, output, thread_idx)
                 beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
 
             if (tumor_alt == '---' or tumor_alt >= self.tumor_min_mismatch):
@@ -538,10 +568,10 @@ class Realignment_filter:
                     self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
     
                     if tumor_align_file.count(chr,start,end) < self.max_depth and is_conv:
-                        tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
+                        tumor_ref, tumor_alt, tumor_other = self.count_reads(tumor_align_file, chr, start, end, output, thread_idx)
                     
                     if normal_align_file.count(chr,start,end) < self.max_depth and is_conv:
-                        normal_ref, normal_alt, normal_other = self.blat_read_count(normal_align_file, chr, start, end, output, thread_idx)
+                        normal_ref, normal_alt, normal_other = self.count_reads(normal_align_file, chr, start, end, output, thread_idx)
     
                 if tumor_ref != '.' and  tumor_alt != '.' and  normal_ref != '.' and  normal_alt != '.':
                     log10_fisher_pvalue = self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt)
@@ -615,7 +645,7 @@ class Realignment_filter:
                    
                 if tumor_align_file.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
                     self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
-                    tumor_ref, tumor_alt, tumor_other = self.blat_read_count(tumor_align_file, chr, start, end, output, thread_idx)
+                    tumor_ref, tumor_alt, tumor_other = self.count_reads(tumor_align_file, chr, start, end, output, thread_idx)
                     beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
     
                 if (tumor_alt == '' or tumor_alt >= self.tumor_min_mismatch):
