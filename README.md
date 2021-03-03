@@ -4,9 +4,12 @@ GenomonMutationFilter is a software package for filtering false poistive somatic
 
 ## Dependency
 
-Python (>= 2.7), pysam packages
-* [blat](http://genome.ucsc.edu/)
+Python (>= 2.7, >= 3.7), pysam packages
 
+You can choose between realignment using blat or realignment using edlib.
+
+* [blat](http://genome.ucsc.edu/)
+* [edlib](https://pypi.org/project/edlib/)
 
 ## Install
 
@@ -34,28 +37,32 @@ make
 ## Run
 
 ```
-mutfilter realignment [-h] [-t tumor_min_mismatch]
-                           [-n normal_max_mismatch] [-s score_difference]
-                           [-w window_size] [--header]
-                           target.anno target_tumor.bam target_normal.bam
-                           output.anno ref_genome blat_path
+usage: mutfilter realignment [-h] -t TARGET_MUTATION_FILE -1 BAM1 [-2 BAM2]
+                             [-A SAMPLE1] [-B SAMPLE2] -o OUTPUT -r REF_GENOME
+                             [--blat] [-b BLAT_PATH] [-m tumor_min_mismatch]
+                             [-M normal_max_mismatch] [-s score_difference]
+                             [-w window_size] [-d max_depth]
+                             [-F exclude_sam_flags] [-O {vcf,anno}] [--header]
+                             [-T number_of_threads]
 ```
 
 ```
-mutfilter indel [-h] [-s search_length] [-n neighbor]
-                     [-b base_qual_thres] [-d min_depth] [-m min_mismatch]
-                     [-a allele_frequency_thres] [--header]
-                     target.anno target_normal.bam output.anno
+usage: mutfilter indel [-h] -t TARGET_MUTATION_FILE -2 BAM2 [-A SAMPLE1]
+                       [-B SAMPLE2] -o OUTPUT [-l search_length] [-n neighbor]
+                       [-d min_depth] [-m min_mismatch]
+                       [-a allele_frequency_thres] [--header] -s SAMTOOLS_PATH
+                       [-S SAMTOOLS_PARAMS] [-O {vcf,anno}] [-r REF_GENOME]
 ```
 
 ```
-mutfilter breakpoint [-h] [-d max_depth] [-c min_clip_size]
-                          [-j junc_num_thres] [-m mapping_quality_thres]
-                          [--header]
-                          target.anno target_normal.bam output.anno
+usage: mutfilter breakpoint [-h] -t TARGET_MUTATION_FILE -2 BAM2 [-A SAMPLE1]
+                            [-B SAMPLE2] -o OUTPUT [-d max_depth]
+                            [-c min_clip_size] [-j junc_num_thres]
+                            [-m mapping_quality_thres] [-F exclude_sam_flags]
+                            [--header] [-O {vcf,anno}] [-r REF_GENOME]
 ```
 
 ```
-mutfilter simplerepeat [-h] [--header]
-                            target.anno output.anno simple_repeat_database
+usage: mutfilter simplerepeat [-h] -t TARGET_MUTATION_FILE -o OUTPUT -S
+                              SIMPLE_REPEAT_DB [--header] [-O {vcf,anno}]
 ```
