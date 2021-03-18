@@ -50,7 +50,7 @@ class Realignment_filter:
 
 
     ############################################################
-    def extractRead(self, bamfile, chr,start,end, output):
+    def extractRead(self, bamfile, chr,start,end, output, flag_blat):
 
         with open(output, 'w') as hOUT:
             for read in bamfile.fetch(chr,start,end):
@@ -63,7 +63,7 @@ class Realignment_filter:
                 flags = format(read_flag, "#014b")[:1:-1]
 
                 tempSeq = ""
-                if flags[4] == "1":
+                if flags[4] == "1" and flag_blat:
                     tempSeq = "".join(self.complement.get(base) for base in reversed(str(read.seq)))
                 else:
                     tempSeq = read.seq
@@ -235,7 +235,7 @@ class Realignment_filter:
     ############################################################
     def count_reads(self, samfile, chr, start, end, output, thread_idx):
         # extract short reads from tumor sequence data around the candidate
-        self.extractRead(samfile,chr,start,end,output + ".tmp.fa")
+        self.extractRead(samfile,chr,start,end,output + ".tmp.fa", self.uses_blat)
 
         if self.uses_blat:
             return self.blat_read_count(samfile, chr, start, end, output, thread_idx)
