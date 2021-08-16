@@ -574,13 +574,13 @@ class Realignment_filter:
                         normal_ref, normal_alt, normal_other = self.count_reads(normal_align_file, chr, start, end, output, thread_idx)
     
                 if tumor_ref != '.' and  tumor_alt != '.' and  normal_ref != '.' and  normal_alt != '.':
-                    log10_fisher_pvalue = self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt)
+                    log10_fisher_pvalue = float(self.calc_fisher_pval(tumor_ref, normal_ref, tumor_alt, normal_alt))
     
                 if  ((tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch) and
                     (normal_alt == '.' or normal_alt <= self.normal_max_mismatch)):
     
                     # Add INFO
-                    new_record.INFO['FPR'] = float(log10_fisher_pvalue)
+                    new_record.INFO['FPR'] = log10_fisher_pvalue
     
                     # Add FPRMAT
                     new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"

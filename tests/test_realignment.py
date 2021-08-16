@@ -11,7 +11,7 @@ import genomon_mutation_filter
 class TestRealignment(unittest.TestCase):
 
     def setUp(self):
-        self.blat = '/home/ubuntu/environment/tools/blat_linux.x86_64.v369/blat'
+        self.blat = '/home/ubuntu/environment/tools/blat'
 
     ######################################
     # Tumor/Normal Pair, Annoformat
