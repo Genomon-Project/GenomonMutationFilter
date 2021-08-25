@@ -5,7 +5,7 @@ import os
 import re
 import logging
 import subprocess
-from . import vcf_utils
+from . import utils
 
 #
 # Class definitions
@@ -181,7 +181,7 @@ class Breakpoint_filter:
             for record in vcf_reader:
                 # input file is annovar format (not zero-based number)
                 new_record = copy.deepcopy(record)
-                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
+                chr, start, end, ref, alt, is_conv = utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
     
                 dist = "."
                 junction_num = "."

@@ -32,7 +32,7 @@ def run_indel_filter(arg):
     is_anno = True if arg.print_format == 'anno' else False
 
     logging.info( 'indel filter start')
-    indelf = idf.Indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch, arg.af_thres, arg.neighbor, arg.header_flag, arg.samtools_path, arg.samtools_params, arg.ref_genome)
+    indelf = idf.Indel_filter(arg.search_length, arg.min_depth, arg.min_mismatch, arg.af_thres, arg.neighbor, arg.header_flag, arg.samtools_path, arg.samtools_params, arg.ref_genome, arg.thread_num)
     if is_anno == True:
         indelf.filter(arg.target_mutation_file, arg.bam2, arg.output)
     else:

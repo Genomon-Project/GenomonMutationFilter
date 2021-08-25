@@ -8,7 +8,7 @@ import subprocess
 import scipy.special
 from scipy.stats import fisher_exact as fisher
 import math
-from . import vcf_utils
+from . import utils
 import collections
 import vcf
 import copy
@@ -259,35 +259,6 @@ class Realignment_filter:
 
 
     ############################################################
-    def partition_anno(self, in_mutation_file):
-
-        # count the number of lines
-        with open(in_mutation_file, "r") as hin:
-            line_num = sum(1 for line in hin)
-
-        thread_num_mod = min(line_num, self.thread_num)
-        if thread_num_mod == 0: thread_num_mod = 1
-
-        each_partition_line_num = line_num / thread_num_mod
-
-        current_line_num = 0
-        split_index = 1
-        with open(in_mutation_file) as hin:
-            hout = open(in_mutation_file +"."+str(split_index), "w")
-            for line in hin:
-                print(line.rstrip('\n'), file=hout)
-                current_line_num = current_line_num + 1
-                if current_line_num > each_partition_line_num and split_index < thread_num_mod:
-                    current_line_num = 0
-                    split_index = split_index + 1
-                    hout.close()
-                    hout = open(in_mutation_file +"." + str(split_index), "w")
-
-        hout.close()
-        return thread_num_mod
-
-
-    ############################################################
     def Print_header(self, in_mutation_file, hResult, is_TN_pair):
         with open(in_mutation_file,'r') as srcfile:
             header = srcfile.readline().rstrip('\n')  
@@ -406,7 +377,7 @@ class Realignment_filter:
             # multi thread
             #             
             if self.thread_num > 1:
-                thread_num_mod = self.partition_anno(in_mutation_file)
+                thread_num_mod = utils.partition_anno(in_mutation_file, self.thread_num)
                 jobs = []
                 for idx in range(1, thread_num_mod+1): 
                     proc = multiprocessing.Process(target = self.filter_main_pair, \
@@ -442,7 +413,7 @@ class Realignment_filter:
             # multi thread
             #             
             if self.thread_num > 1:
-                thread_num_mod = self.partition_anno(in_mutation_file)
+                thread_num_mod = utils.partition_anno(in_mutation_file, self.thread_num)
                 jobs = []
                 for idx in range(1, thread_num_mod+1): 
                     proc = multiprocessing.Process(target = self.filter_main_single, \
@@ -497,45 +468,6 @@ class Realignment_filter:
         vcf_reader.formats['NOR'] = vcf.parser._Format('NOR', 1, 'Integer', "Number of other reads")
         
 
-    ############################################################
-    def partition_vcf(self, in_mutation_file):
-
-        # count the number of lines
-        line_num = 0
-        hin = open(in_mutation_file, 'r')
-        vcf_reader = vcf.Reader(hin)
-        for record in vcf_reader:
-            line_num = line_num + 1
-        hin.close()
-        
-        thread_num_mod = min(line_num, self.thread_num)
-        if thread_num_mod == 0: thread_num_mod = 1
-
-        each_partition_line_num = line_num / thread_num_mod
-
-        current_line_num = 0
-        split_index = 1
-        hout = open(in_mutation_file +"."+str(split_index), 'w')
-        hin = open(in_mutation_file, 'r')
-        vcf_reader = vcf.Reader(hin)
-        vcf_writer = vcf.Writer(hout, vcf_reader)
-        for record in vcf_reader:
-            vcf_writer.write_record(record)
-            current_line_num = current_line_num + 1
-            if current_line_num > each_partition_line_num and split_index < thread_num_mod:
-                current_line_num = 0
-                split_index = split_index + 1
-                vcf_writer.close()
-                hout.close()
-                hout = open(in_mutation_file +"."+str(split_index), 'w')
-                vcf_writer = vcf.Writer(hout, vcf_reader)
-
-        vcf_writer.close()
-        hout.close()
-        hin.close()
-        return thread_num_mod
-
-
     ###########################################################
     def filter_main_pair_vcf(self, in_tumor_bam, in_normal_bam, in_mutation_file, output, tumor_sample, normal_sample, thread_idx):
 
@@ -561,7 +493,7 @@ class Realignment_filter:
             ####
             for record in vcf_reader:
                 new_record = copy.deepcopy(record)
-                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
+                chr, start, end, ref, alt, is_conv = utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
                    
                 tumor_ref, tumor_alt, tumor_other, normal_ref, normal_alt, normal_other, log10_fisher_pvalue= ('.','.','.','.','.','.','.')
                 if int(start) >= int(self.window):
@@ -639,7 +571,7 @@ class Realignment_filter:
             for record in vcf_reader:
                 new_record = copy.deepcopy(record)
                 # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
-                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
+                chr, start, end, ref, alt, is_conv = utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
                     
                 tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('','','','','','')
                    
@@ -686,7 +618,7 @@ class Realignment_filter:
             # multi thread
             #             
             if self.thread_num > 1:
-                thread_num_mod = self.partition_vcf(in_mutation_file)
+                thread_num_mod = utils.partition_vcf(in_mutation_file, self.thread_num)
                 jobs = []
                 for idx in range(1, thread_num_mod+1): 
                     proc = multiprocessing.Process(target = self.filter_main_pair_vcf, \
@@ -723,7 +655,7 @@ class Realignment_filter:
             # multi thread
             #             
             if self.thread_num > 1:
-                thread_num_mod = self.partition_vcf(in_mutation_file)
+                thread_num_mod = utils.partition_vcf(in_mutation_file, self.thread_num)
                 jobs = []
                 for idx in range(1, thread_num_mod+1): 
                     proc = multiprocessing.Process(target = self.filter_main_single_vcf, \

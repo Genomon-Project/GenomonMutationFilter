@@ -62,6 +62,7 @@ def create_parser():
         indel_parser.add_argument( '-S', '--samtools_params', type = str, default = "-q 20 -BQ0 -d 10000000")
         indel_parser.add_argument( '-O', '--print_format', choices = ['vcf','anno'], help = 'Print VCF or anno(TSV) format',  default = 'anno' )
         indel_parser.add_argument( '-r', '--ref_genome', help = 'Reference genome', type = str, default = None)
+        indel_parser.add_argument( '-T', '--thread_num', metavar = "number_of_threads", default='1', type=int)
 
         return indel_parser
 

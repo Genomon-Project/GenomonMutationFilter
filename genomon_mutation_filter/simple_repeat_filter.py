@@ -4,7 +4,7 @@ import os
 import re
 import logging
 import pysam
-from . import vcf_utils
+from . import utils
 
 #
 # Class definitions
@@ -95,7 +95,7 @@ class Simple_repeat_filter:
     
             for record in vcf_reader:
     
-                chr, start, end, ref, alt, is_conv = vcf_utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
+                chr, start, end, ref, alt, is_conv = utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
                 db_pos, dbseq = self.filter_main(chr,start,end,tb)
                 
                 if not db_pos == "":
