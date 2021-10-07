@@ -24,7 +24,7 @@ class Indel_filter:
         self.min_mismatch = min_mismatch
         self.af_thres = af_thres
         self.neighbor = neighbor
-        self.target = re.compile( '([\+\-])([0-9]+)([ACGTNacgtn]+)' )
+        self.target = re.compile( '([\+\-])([0-9]+)([ACGTNRMacgtnrm]+)' )
         self.remove_chr = re.compile( '\^.' )
         self.header_flag = header_flag
         self.samtools_path = samtools_path
