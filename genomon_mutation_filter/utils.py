@@ -1,6 +1,7 @@
 from __future__ import print_function
 import os, sys
 import vcf
+import math
 
 def vcf_fields2anno(chrom, pos_str, ref_sub, alt_sub):
     pos = int(pos_str)
@@ -80,70 +81,79 @@ def sort_header(in_header, out_header):
 
 
 ############################################################
-def partition_anno(in_mutation_file, thread_num):
+def partition_anno(inputFilePath, thread_num):
+
+    partitionNum = thread_num
+    outputFilePrefix = inputFilePath 
 
     # count the number of lines
-    with open(in_mutation_file, "r") as hin:
-        line_num = sum(1 for line in hin)
+    with open(inputFilePath, "r") as hin:
+        recordNum = sum(1 for line in hin)
 
-    thread_num_mod = min(line_num, thread_num)
-    if thread_num_mod == 0: thread_num_mod = 1
+    partitionNum_mod = min(recordNum, partitionNum)
+    if partitionNum_mod == 0: partitionNum_mod = 1
+    eachPartitionNum = math.ceil(recordNum / partitionNum_mod)
+    if eachPartitionNum == 0: eachPartitionNum = 1
+    partitionNum_mod = math.ceil(recordNum / eachPartitionNum)
 
-    each_partition_line_num = line_num / thread_num_mod
-
-    current_line_num = 0
-    split_index = 1
-    with open(in_mutation_file) as hin:
-        hout = open(in_mutation_file +"."+str(split_index), "w")
+    currentPartition = 0
+    currentRecordNum = 0
+    with open(inputFilePath) as hin:
+        hout = open(outputFilePrefix + ".1", 'w')
         for line in hin:
             print(line.rstrip('\n'), file=hout)
-            current_line_num = current_line_num + 1
-            if current_line_num > each_partition_line_num and split_index < thread_num_mod:
-                current_line_num = 0
-                split_index = split_index + 1
-                hout.close()
-                hout = open(in_mutation_file +"." + str(split_index), "w")
+            currentRecordNum += 1
 
-    hout.close()
-    return thread_num_mod
-        
+            if currentRecordNum >= eachPartitionNum and currentPartition < partitionNum_mod - 1:
+                currentRecordNum = 0
+                currentPartition += 1
+                hout.close()
+                hout = open(outputFilePrefix +"."+ str(currentPartition+1), 'w')
+
+        hout.close()
+    return partitionNum_mod
+
 
 ############################################################
-def partition_vcf(in_mutation_file, thread_num):
+def partition_vcf(inputFilePath, thread_num):
+    partitionNum = thread_num
+    outputFilePrefix = inputFilePath 
 
-    # count the number of lines
-    line_num = 0
-    hin = open(in_mutation_file, 'r')
-    vcf_reader = vcf.Reader(hin)
-    for record in vcf_reader:
-        line_num = line_num + 1
+    hin = open(inputFilePath, 'r')
+    vcf_reader1 = vcf.Reader(hin)
+    recordNum = 0
+    for record in vcf_reader1:
+        recordNum += 1
     hin.close()
+
+    partitionNum_mod = min(recordNum, partitionNum)
+    if partitionNum_mod == 0: partitionNum_mod = 1
+    eachPartitionNum = math.ceil(recordNum / partitionNum_mod)
+    if eachPartitionNum == 0: eachPartitionNum = 1
+    partitionNum_mod = math.ceil(recordNum / eachPartitionNum)
     
-    thread_num_mod = min(line_num, thread_num)
-    if thread_num_mod == 0: thread_num_mod = 1
+    currentPartition = 0
+    currentRecordNum = 0
+    
+    hin = open(inputFilePath, 'r')
+    vcf_reader2 = vcf.Reader(hin)
 
-    each_partition_line_num = line_num / thread_num_mod
+    hout = open(outputFilePrefix + ".1", 'w')
+    vcf_writer = vcf.Writer(hout, vcf_reader2)
 
-    current_line_num = 0
-    split_index = 1
-    hout = open(in_mutation_file +"."+str(split_index), 'w')
-    hin = open(in_mutation_file, 'r')
-    vcf_reader = vcf.Reader(hin)
-    vcf_writer = vcf.Writer(hout, vcf_reader)
-    for record in vcf_reader:
+    for record in vcf_reader2:
         vcf_writer.write_record(record)
-        current_line_num = current_line_num + 1
-        if current_line_num > each_partition_line_num and split_index < thread_num_mod:
-            current_line_num = 0
-            split_index = split_index + 1
+        currentRecordNum += 1
+
+        if currentRecordNum >= eachPartitionNum and currentPartition < partitionNum_mod - 1:
+            currentPartition += 1
+            currentRecordNum = 0
             vcf_writer.close()
             hout.close()
-            hout = open(in_mutation_file +"."+str(split_index), 'w')
-            vcf_writer = vcf.Writer(hout, vcf_reader)
-
+            hout = open(outputFilePrefix +"."+ str(currentPartition+1), 'w')
+            vcf_writer = vcf.Writer(hout, vcf_reader2) 
     vcf_writer.close()
     hout.close()
     hin.close()
-    return thread_num_mod
-    
-    
+    return partitionNum_mod
+
