@@ -573,19 +573,24 @@ class Realignment_filter:
                 # chr, start, end, ref, alt  = (rec.chrom (rec.pos - 1), rec.pos, rec.ref, rec.alts[0])
                 chr, start, end, ref, alt, is_conv = utils.vcf_fields2anno(record.CHROM, record.POS, record.REF, record.ALT[0])
                     
-                tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('','','','','','')
+                tumor_ref, tumor_alt, tumor_other, beta_01, beta_mid, beta_09 = ('.','.','.','.','.','.')
                    
                 if tumor_align_file.count(chr,start,end) < self.max_depth and int(start) >= int(self.window) :
                     self.makeTwoReference(chr,start,end,ref,alt,output + ".tmp.refalt.fa")
                     tumor_ref, tumor_alt, tumor_other = self.count_reads(tumor_align_file, chr, start, end, output, thread_idx)
-                    beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
     
-                if (tumor_alt == '' or tumor_alt >= self.tumor_min_mismatch):
+                if tumor_ref != '.' and  tumor_alt != '.':
+                    beta_01, beta_mid, beta_09 = self.calc_btdtri(tumor_ref, tumor_alt)
+                    beta_01 = float(beta_01)
+                    beta_mid = float(beta_mid)
+                    beta_09 = float(beta_09)
+    
+                if (tumor_alt == '.' or tumor_alt >= self.tumor_min_mismatch):
     
                     # Add INFO
-                    new_record.INFO['B1R'] = float(beta_01)
-                    new_record.INFO['BMR'] = float(beta_mid)
-                    new_record.INFO['B9R'] = float(beta_09)
+                    new_record.INFO['B1R'] = beta_01
+                    new_record.INFO['BMR'] = beta_mid
+                    new_record.INFO['B9R'] = beta_09
     
                     # Add FPRMAT
                     new_record.FORMAT = new_record.FORMAT+":NNR:NAR:NOR"
