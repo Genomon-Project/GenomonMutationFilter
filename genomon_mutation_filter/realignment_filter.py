@@ -14,13 +14,14 @@ import vcf
 import copy
 import multiprocessing
 import edlib
+import parasail
 
 #
 # Class definitions
 #
 class Realignment_filter:
 
-    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat):
+    def __init__(self,referenceGenome,tumor_min_mismatch,normal_max_mismatch, search_length, score_difference, blat, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib):
         self.reference_genome = referenceGenome
         self.window = search_length
         self.score_difference = score_difference
@@ -33,6 +34,9 @@ class Realignment_filter:
         self.exclude_sam_flags = exclude_sam_flags
         self.thread_num = thread_num
         self.uses_blat = uses_blat
+        self.uses_edlib = uses_edlib
+        if uses_blat == False and uses_edlib == False:
+            self.user_matrix = parasail.matrix_create("ACGT", 2, -2)
      
     
     ############################################################
@@ -50,7 +54,7 @@ class Realignment_filter:
 
 
     ############################################################
-    def extractRead(self, bamfile, chr,start,end, output, flag_blat):
+    def extractRead(self, bamfile, chr,start,end, output):
 
         with open(output, 'w') as hOUT:
             for read in bamfile.fetch(chr,start,end):
@@ -63,7 +67,7 @@ class Realignment_filter:
                 flags = format(read_flag, "#014b")[:1:-1]
 
                 tempSeq = ""
-                if flags[4] == "1" and flag_blat:
+                if flags[4] == "1" and self.uses_blat:
                     tempSeq = "".join(self.complement.get(base) for base in reversed(str(read.seq)))
                 else:
                     tempSeq = read.seq
@@ -133,8 +137,6 @@ class Realignment_filter:
 
     ############################################################
     def summarizeRefAlt(self, inputPsl):
-        
-        
 
         numOther = []
         numAlt = []
@@ -233,14 +235,39 @@ class Realignment_filter:
         return len(refs), len(alts), len(others)
 
     ############################################################
+    def parasail_read_count(self, samfile, chr, start, end, output):
+        refalt = [None, None]
+        with open(output + ".tmp.refalt.fa") as r:
+            for (tname, seq) in zip(r, r):
+                refalt[tname.rstrip().endswith('_alt')] = seq.rstrip()
+        ref, alt = refalt
+
+        refs = set(); alts = set(); others = set()
+        with open(output + ".tmp.fa") as r:
+            for (qname, seq) in zip(r, r):
+                qname = re.sub(r'^>(.*)/[12]$', r'\1', qname.rstrip())
+                seq = seq.rstrip()
+                res_ref = parasail.ssw(ref, seq, 3, 1, self.user_matrix)
+                res_alt = parasail.ssw(alt, seq, 3, 1, self.user_matrix)
+                if res_ref.score1 > res_alt.score1:
+                    refs.add(qname)
+                elif res_ref.score1 < res_alt.score1:
+                    alts.add(qname)
+                else:
+                    others.add(qname)
+        return len(refs), len(alts), len(others)
+
+    ############################################################
     def count_reads(self, samfile, chr, start, end, output, thread_idx):
         # extract short reads from tumor sequence data around the candidate
-        self.extractRead(samfile,chr,start,end,output + ".tmp.fa", self.uses_blat)
+        self.extractRead(samfile,chr,start,end,output + ".tmp.fa")
 
         if self.uses_blat:
             return self.blat_read_count(samfile, chr, start, end, output, thread_idx)
-        else:
+        elif self.uses_edlib:
             return self.edlib_read_count(samfile, chr, start, end, output)
+        else:
+            return self.parasail_read_count(samfile, chr, start, end, output)
 
     ############################################################
     def calc_fisher_pval(self, tumor_ref, normal_ref, tumor_alt, normal_alt):

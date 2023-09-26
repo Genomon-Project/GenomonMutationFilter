@@ -30,6 +30,7 @@ def create_parser():
         realign_parser.add_argument( '-o', '--output', help = 'Output text file', type = str, default = None, required = True)
         realign_parser.add_argument( '-r', '--ref_genome', help = 'Reference genome', type = str, default = None , required = True)
         realign_parser.add_argument( '--blat', action='store_true', default=False)
+        realign_parser.add_argument( '--edlib', action='store_true', default=False)
         realign_parser.add_argument( '-b', '--blat_path', type = str, default = None)
         realign_parser.add_argument( '-m', '--tumor_min_mismatch', metavar = "tumor_min_mismatch", default='0', type=int)
         realign_parser.add_argument( '-M', '--normal_max_mismatch', metavar = "normal_max_mismatch", default='100000', type=int)
