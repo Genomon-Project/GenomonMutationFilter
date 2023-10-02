@@ -11,7 +11,7 @@ import genomon_mutation_filter
 class TestRealignment(unittest.TestCase):
 
     def setUp(self):
-        self.blat = '/home/ubuntu/environment/tools/blat'
+        self.blat = 'blat'
 
     ######################################
     # Tumor/Normal Pair, Annoformat
@@ -30,11 +30,12 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
 
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -59,10 +60,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -87,10 +89,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -115,10 +118,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -143,10 +147,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -172,10 +177,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -204,10 +210,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
@@ -232,10 +239,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
@@ -260,10 +268,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
@@ -288,10 +297,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
@@ -316,10 +326,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
@@ -344,10 +355,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
@@ -375,10 +387,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -405,10 +418,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -435,10 +449,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -465,10 +480,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -495,10 +511,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -526,10 +543,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = cur_dir + "/../data/5929_control_small.markdup.bam"
@@ -559,10 +577,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
@@ -589,10 +608,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
@@ -619,10 +639,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
@@ -649,10 +670,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 1
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
@@ -680,10 +702,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
@@ -710,10 +733,11 @@ class TestRealignment(unittest.TestCase):
         exclude_sam_flags = 3328
         thread_num = 2
         uses_blat = True
+        uses_edlib = False
         
         realignf = rf.Realignment_filter(ref_genome, 
         tumor_min_mismatch, normal_max_mismatch, window_size, score_difference, 
-        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat)
+        blat_path, header_flag, max_depth, exclude_sam_flags, thread_num, uses_blat, uses_edlib)
 
         bam1 = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         bam2 = None
