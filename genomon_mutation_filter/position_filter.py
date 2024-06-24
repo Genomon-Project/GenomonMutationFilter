@@ -21,11 +21,10 @@ class Position_filter:
         self.remove_chr = re.compile( '\^.' )
 
  
-    def parse_bases(self, bases, positions, qnames):
+    def parse_bases(self, bases, positions, qnames, ref):
 
         var2num = {}
         var2pos = {}
-        var2num_plus = {}
         var2qname = {}
     
         l_positions = positions.split(',')
@@ -43,16 +42,15 @@ class Position_filter:
             elif bases[0] in '$':
                 bases = bases[1:]
             elif bases[0] in ['.', ',', 'A', 'C', 'G', 'T', 'N', 'a', 'c', 'g', 't', 'n']:
-                if bases[0] not in ['.', ',']: 
-                    var_original = bases[0]
-                    var = var_original.upper()
-                    if var not in var2num:
-                        var2num[var], var2pos[var], var2num_plus[var], var2qname[var] = 0, [], 0, []
-                    var2num[var] = var2num[var] + 1
-                    var2pos[var].append(l_positions[base_ind])
-                    var2qname[var].append(l_qnames[base_ind])
-                    if var == var_original: 
-                        var2num_plus[var] = var2num_plus[var] + 1
+                var_original = bases[0]
+                if var_original in ['.', ',']: 
+                    var_original = ref
+                var = var_original.upper()
+                if var not in var2num:
+                    var2num[var], var2pos[var], var2qname[var] = 0, [], []
+                var2num[var] = var2num[var] + 1
+                var2pos[var].append(l_positions[base_ind])
+                var2qname[var].append(l_qnames[base_ind])
     
                 if bases[0] in ['.', 'A', 'C', 'G', 'T', 'N']:
                     depth_p = depth_p + 1
@@ -68,11 +66,10 @@ class Position_filter:
                     var_original = bases[0] + bases[(len(str(indel_size)) + 1):(len(str(indel_size)) + indel_size + 1)]
                     var = var_original.upper()
                     if var not in var2num:
-                        var2num[var], var2pos[var], var2num_plus[var], var2qname[var] = 0, [], 0, []
+                        var2num[var], var2pos[var], var2qname[var] = 0, [], []
                     var2num[var] = var2num[var] + 1
                     var2pos[var].append(l_positions[base_ind])
                     var2qname[var].append(l_qnames[base_ind])
-                    if var == var_original: var2num_plus[var] = var2num_plus[var] + 1
     
                     bases = bases[(len(str(indel_size)) + indel_size + 1):]
                 base_ind = base_ind + 1
@@ -112,13 +109,12 @@ class Position_filter:
         return ret
 
 
-    def pysam_fetch(self, chrom, pos1, pos2, bam):
+    def pysam_fetch(self, chrom, pos1, pos2, samfile):
 
         d_ret = {}
-        samfile = pysam.AlignmentFile(bam)
 
         for read in samfile.fetch(chrom,pos1,pos2):
-            d_ret[read.qname] = (read.cigar,read.query_length)
+            d_ret[read.qname] = (read.cigar,read.query_length,read.tags)
 
         return d_ret
 
@@ -165,13 +161,24 @@ class Position_filter:
 
         if cigar[0][0] == 4:
             cigar_left=cigar[0][1]
-        elif cigar[-1][0] == 4:
+        if cigar[-1][0] == 4:
             cigar_right=cigar[-1][1]
 
         return cigar_left, cigar_right
 
     
+    def get_nm(self, tags):
+
+        ret = 0
+        for tag, val in tags:
+            if tag == "NM":
+                ret = val
+        return ret
+
+
     def filter(self, in_mutation_file, bam, output):
+
+        pysam_file = pysam.AlignmentFile(bam)
     
         with open(in_mutation_file, "r") as srcfile, open(output,'w') as hout, open(os.devnull, 'w') as FNULL:
             for line in srcfile:
@@ -180,7 +187,7 @@ class Position_filter:
                     print(line, file=hout)
                     continue
                 elif line.startswith("Chr"):
-                    print(line+"\tleft_read_position_mean\tleft_read_positon_sd\tright_read_position_mean\tright_read_position_sd", file=hout)
+                    print(line+"\tleft_read_position_mean\tleft_read_positon_sd\tright_read_position_mean\tright_read_position_sd\tref_read_NM_mean\talt_read_NM_mean", file=hout)
                     continue
 
                 F = line.split('\t')
@@ -191,31 +198,47 @@ class Position_filter:
 
                 l_left_position = []
                 l_right_position = []
+                l_alt_mismatch = []
+                l_ref_mismatch = []
 
                 # block substitution not suppport
                 if pileup_key != None:
 
                     reg = self.prepare_mpileup_params(chrom, start, end, alt) 
                     l_mp = self.call_mpileup(reg, bam, FNULL)
-                    depth_p, depth_n, var2num, var2pos, var2qname = self.parse_bases(l_mp[4], l_mp[6], l_mp[7])
+                    depth_p, depth_n, var2num, var2pos, var2qname = self.parse_bases(l_mp[4], l_mp[6], l_mp[7], l_mp[2])
 
                     pos1, pos2 = self.prepare_pysam_params(chrom, start, end, alt) 
-                    d_qname_pysam = self.pysam_fetch(chrom, pos1, pos2, bam)
+                    d_qname_pysam = self.pysam_fetch(chrom, pos1, pos2, pysam_file)
 
                     for idx, qname in enumerate(var2qname[pileup_key]):
                         mut_position = var2pos[pileup_key][idx]
-                        cigar, query_length = d_qname_pysam[qname]
+                        cigar, query_length, tags = d_qname_pysam[qname]
 
                         cigar_left, cigar_right = self.get_cigar_size(cigar)
+                        nm = self.get_nm(tags)
 
                         l_left_position.append(int(mut_position) - int(cigar_left))
                         l_right_position.append(int(query_length) - int(cigar_right) - int(mut_position) + 1)
+                        l_alt_mismatch.append(int(nm))
 
+                    if l_mp[2] in var2qname:
+                    
+                        for idx, qname in enumerate(var2qname[l_mp[2]]):
+                            cigar, query_length, tags = d_qname_pysam[qname]
+
+                            nm = self.get_nm(tags)
+                            l_ref_mismatch.append(int(nm))
+              
                     left_mean = math.floor(np.average(l_left_position) * 10000) / 10000
                     left_std = math.floor(np.std(l_left_position) * 10000) / 10000
                     right_mean = math.floor(np.average(l_right_position) * 10000) / 10000
                     right_std = math.floor(np.std(l_right_position) * 10000) / 10000
-                print(line+"\t"+str(left_mean)+"\t"+str(left_std)+"\t"+str(right_mean)+"\t"+str(right_std), file=hout)
+                    alt_mismatch_mean = math.floor(np.average(l_alt_mismatch) * 10000) / 10000
+                    ref_mismatch_mean = math.floor(np.average(l_ref_mismatch) * 10000) / 10000 if len(l_ref_mismatch) > 0 else None
+                print(line+"\t"+str(left_mean)+"\t"+str(left_std)+"\t"+str(right_mean)+"\t"+str(right_std)+"\t"+str(ref_mismatch_mean)+"\t"+str(alt_mismatch_mean), file=hout)
+
+        pysam_file.close()
 
     def filter_vcf(self, bam, target_file):
         return None
