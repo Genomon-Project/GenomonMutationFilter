@@ -176,7 +176,10 @@ class Position_filter:
         with open(in_mutation_file, "r") as srcfile, open(output,'w') as hout, open(os.devnull, 'w') as FNULL:
             for line in srcfile:
                 line = line.rstrip("\n")
-                if line.startswith("#") or line.startswith("Chr"):
+                if line.startswith("#"):
+                    print(line, file=hout)
+                    continue
+                elif line.startswith("Chr"):
                     print(line+"\tleft_read_position_mean\tleft_read_positon_sd\tright_read_position_mean\tright_read_position_sd", file=hout)
                     continue
 

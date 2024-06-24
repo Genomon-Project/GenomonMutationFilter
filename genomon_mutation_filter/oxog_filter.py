@@ -292,7 +292,10 @@ class Oxog_filter:
         with open(in_mutation_file, "r") as srcfile, open(output,'w') as hout, open(os.devnull, 'w') as FNULL:
             for line in srcfile:
                 line = line.rstrip('\n')
-                if line.startswith("#") or line.startswith("Chr"):
+                if line.startswith("#"):
+                    print(line, file=hout)
+                    continue
+                elif line.startswith("Chr"):
                     print(line+"\talt_F1R2\talt_F2R1\toxog_flag", file=hout)
                     continue
 
