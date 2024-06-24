@@ -10,19 +10,19 @@ def vcf_fields2anno(chrom, pos_str, ref_sub, alt_sub):
 
     # for insertion
     if len(ref) < len(alt) and len(ref) == 1 and alt[0:1] == ref:
-        start = pos -1
+        start = pos
         end = pos
         ret = (chrom, start, end, "-", alt[1:], True)
 
     # for deletion
     elif len(ref) > len(alt) and len(alt) == 1 and ref[0:1] == alt:
-        start = pos
+        start = pos + 1
         end = pos + len(ref[1:])
         ret = (chrom, start, end, ref[1:], "-", True)
 
     # for SNV
     elif len(ref) == 1 and len(alt) == 1:
-        start = pos -1
+        start = pos
         end = pos
         ret = (chrom, start, end, ref, alt, True)
 

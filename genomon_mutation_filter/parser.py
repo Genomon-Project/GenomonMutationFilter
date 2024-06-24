@@ -10,6 +10,8 @@ from .run import run_realignment_filter
 from .run import run_indel_filter
 from .run import run_breakpoint_filter
 from .run import run_simple_repeat_filter
+from .run import run_oxog_filter
+from .run import run_position_filter
 
 
 def create_parser():
@@ -100,6 +102,35 @@ def create_parser():
         return simplerepeat_parser
 
 
+    def _create_oxog_parser(subparsers):
+
+        oxog_parser = subparsers.add_parser("oxog")
+        oxog_parser.add_argument( '-t', '--target_mutation_file', help = 'mutation text', type = str, default = None, required = True )
+        oxog_parser.add_argument( '-1', '--bam1', help = '1st bam file ( tumor )', type = str, default = None, required = True )
+        oxog_parser.add_argument( '-3', '--bam3', help = '3rd bam file ( rna )', type = str, default = None)
+        oxog_parser.add_argument( '-s', '--samtools_path', type = str, default = "samtools")
+        oxog_parser.add_argument( '-S', '--mpileup_params', type = str, default = "-q 20 -B -Q15 -d 10000000")
+        oxog_parser.add_argument( '-o', '--output', help = 'Output text file', type = str, default = None, required = True)
+        oxog_parser.add_argument( '-r', '--ref_genome', help = 'Reference genome', type = str, default = None , required = True)
+        oxog_parser.add_argument( '-O', '--print_format', choices = ['vcf','anno'], help = 'Print VCF or TSV format',  default = 'tsv' )
+
+        return oxog_parser
+
+
+    def _create_position_parser(subparsers):
+
+        position_parser = subparsers.add_parser("position")
+        position_parser.add_argument( '-t', '--target_mutation_file', help = 'mutation text', type = str, default = None, required = True )
+        position_parser.add_argument( '-1', '--bam1', help = '1st bam file ( tumor )', type = str, default = None, required = True )
+        position_parser.add_argument( '-s', '--samtools_path', type = str, default = "samtools")
+        position_parser.add_argument( '-S', '--mpileup_params', type = str, default = "-q 20 -B -Q15 -d 10000000 --output-BP --output-QNAME")
+        position_parser.add_argument( '-o', '--output', help = 'Output text file', type = str, default = None, required = True)
+        position_parser.add_argument( '-r', '--ref_genome', help = 'Reference genome', type = str, default = None , required = True)
+        position_parser.add_argument( '-O', '--print_format', choices = ['vcf','tsv'], help = 'Print VCF or TSV format',  default = 'tsv' )
+
+        return position_parser
+
+
     realign_parser = _create_realignment_parser(subparsers)
     realign_parser.set_defaults(func = run_realignment_filter)
     indel_parser = _create_indel_parser(subparsers)
@@ -108,5 +139,9 @@ def create_parser():
     breakpoint_parser.set_defaults(func = run_breakpoint_filter)
     simplerepeat_parser = _create_simplerepeat_parser(subparsers)
     simplerepeat_parser.set_defaults(func = run_simple_repeat_filter)
+    oxog_parser = _create_oxog_parser(subparsers)
+    oxog_parser.set_defaults(func = run_oxog_filter)
+    position_parser = _create_position_parser(subparsers)
+    position_parser.set_defaults(func = run_position_filter)
     return parser
     

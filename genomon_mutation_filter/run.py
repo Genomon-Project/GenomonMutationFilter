@@ -9,6 +9,8 @@ from . import realignment_filter as rf
 from . import indel_filter as idf
 from . import breakpoint_filter as brf
 from . import simple_repeat_filter as sif
+from . import oxog_filter as of
+from . import position_filter as pf
 
 
 #
@@ -64,5 +66,31 @@ def run_simple_repeat_filter(arg):
     else:
         simplef.filter_vcf(arg.target_mutation_file, arg.output)
     logging.info( 'simple repeat filter end')
+
+
+def run_oxog_filter(arg):
+
+    is_tsv = True if arg.print_format == 'tsv' else False
+
+    logging.info( 'oxog filter start')
+    oxogf = of.Oxog_filter(arg.ref_genome,arg.samtools_path, arg.mpileup_params)
+    if is_tsv == True:
+        oxogf.filter(arg.target_mutation_file, arg.bam1, arg.output, arg.bam3)
+    else:
+        oxogf.filter_vcf(arg.target_mutation_file, arg.bam1, arg.output, arg.bam3)
+    logging.info( 'oxog filter end')
+
+
+def run_position_filter(arg):
+
+    is_tsv = True if arg.print_format == 'tsv' else False
+
+    logging.info( 'position filter start')
+    posf = pf.Position_filter(arg.ref_genome, arg.samtools_path, arg.mpileup_params)
+    if is_tsv == True:
+        posf.filter(arg.target_mutation_file, arg.bam1, arg.output)
+    else:
+        posf.filter_vcf(arg.target_mutation_file, arg.bam1, arg.output)
+    logging.info( 'position filter end')
 
 
