@@ -20,15 +20,16 @@ class Position_filter:
         self.target = re.compile( '([\+\-])([0-9]+)([ACGTNRMacgtnrm]+)' )
         self.remove_chr = re.compile( '\^.' )
 
- 
-    def parse_bases(self, bases, positions, qnames, ref):
+    def parse_bases(self, bases, positions, qnames, flags, ref):
 
         var2num = {}
         var2pos = {}
         var2qname = {}
+        var2flag = {}
     
         l_positions = positions.split(',')
         l_qnames = qnames.split(',')
+        l_flags = flags.split(',')
         base_ind = 0
         depth_p, depth_n = 0, 0
     
@@ -47,10 +48,11 @@ class Position_filter:
                     var_original = ref
                 var = var_original.upper()
                 if var not in var2num:
-                    var2num[var], var2pos[var], var2qname[var] = 0, [], []
+                    var2num[var], var2pos[var], var2qname[var], var2flag[var]  = 0, [], [], []
                 var2num[var] = var2num[var] + 1
                 var2pos[var].append(l_positions[base_ind])
                 var2qname[var].append(l_qnames[base_ind])
+                var2flag[var].append(l_flags[base_ind])
     
                 if bases[0] in ['.', 'A', 'C', 'G', 'T', 'N']:
                     depth_p = depth_p + 1
@@ -66,10 +68,11 @@ class Position_filter:
                     var_original = bases[0] + bases[(len(str(indel_size)) + 1):(len(str(indel_size)) + indel_size + 1)]
                     var = var_original.upper()
                     if var not in var2num:
-                        var2num[var], var2pos[var], var2qname[var] = 0, [], []
+                        var2num[var], var2pos[var], var2qname[var], var2flag[var]  = 0, [], [], []
                     var2num[var] = var2num[var] + 1
                     var2pos[var].append(l_positions[base_ind])
                     var2qname[var].append(l_qnames[base_ind])
+                    var2flag[var].append(l_flags[base_ind])
     
                     bases = bases[(len(str(indel_size)) + indel_size + 1):]
                 base_ind = base_ind + 1
@@ -78,7 +81,7 @@ class Position_filter:
             print("Error???")
             sys.exit(1)
     
-        return depth_p, depth_n, var2num, var2pos, var2qname
+        return depth_p, depth_n, var2num, var2pos, var2qname, var2flag
     
     
     def call_mpileup(self, reg, bam, FNULL):
@@ -114,7 +117,7 @@ class Position_filter:
         d_ret = {}
 
         for read in samfile.fetch(chrom,pos1,pos2):
-            d_ret[read.qname] = (read.cigar,read.query_length,read.tags)
+            d_ret[read.qname] = (read.cigar,read.query_length,read.tags,read.flag)
 
         return d_ret
 
@@ -196,40 +199,50 @@ class Position_filter:
                 chrom,start,end,ref,alt, is_conv = utils.vcf_fields2anno(F[0], int(F[1]), F[2], F[3]) 
                 pileup_key = self.get_alt_pileup_key(F[2], F[3]) 
 
-                l_left_position = []
-                l_right_position = []
-                l_alt_mismatch = []
-                l_ref_mismatch = []
+                left_mean = ""
+                left_std = ""
+                right_mean = ""
+                right_std = ""
+                alt_mismatch_mean = ""
+                ref_mismatch_mean = ""
 
                 # block substitution not suppport
                 if pileup_key != None:
+                
+                    l_left_position = []
+                    l_right_position = []
+                    l_alt_mismatch = []
+                    l_ref_mismatch = []
 
                     reg = self.prepare_mpileup_params(chrom, start, end, alt) 
                     l_mp = self.call_mpileup(reg, bam, FNULL)
-                    depth_p, depth_n, var2num, var2pos, var2qname = self.parse_bases(l_mp[4], l_mp[6], l_mp[7], l_mp[2])
+                    depth_p, depth_n, var2num, var2pos, var2qname, var2flag  = self.parse_bases(l_mp[4], l_mp[6], l_mp[7], l_mp[8], l_mp[2])
 
                     pos1, pos2 = self.prepare_pysam_params(chrom, start, end, alt) 
                     d_qname_pysam = self.pysam_fetch(chrom, pos1, pos2, pysam_file)
 
                     for idx, qname in enumerate(var2qname[pileup_key]):
+
                         mut_position = var2pos[pileup_key][idx]
-                        cigar, query_length, tags = d_qname_pysam[qname]
+                        cigar, query_length, tags, flag = d_qname_pysam[qname]
+                    
+                        if flag != int(var2flag[pileup_key][idx]): continue
 
                         cigar_left, cigar_right = self.get_cigar_size(cigar)
-                        nm = self.get_nm(tags)
 
                         l_left_position.append(int(mut_position) - int(cigar_left))
                         l_right_position.append(int(query_length) - int(cigar_right) - int(mut_position) + 1)
-                        l_alt_mismatch.append(int(nm))
+                        l_alt_mismatch.append(int(self.get_nm(tags)))
 
-                    if l_mp[2] in var2qname:
+                    l_qnames = var2qname[l_mp[2]] if l_mp[2] in var2qname else []
                     
-                        for idx, qname in enumerate(var2qname[l_mp[2]]):
-                            cigar, query_length, tags = d_qname_pysam[qname]
+                    for idx, qname in enumerate(l_qnames):
+                        cigar, query_length, tags, flag = d_qname_pysam[qname]
+                    
+                        if flag != int(var2flag[l_mp[2]][idx]): continue
 
-                            nm = self.get_nm(tags)
-                            l_ref_mismatch.append(int(nm))
-              
+                        l_ref_mismatch.append(int(self.get_nm(tags)))
+
                     left_mean = math.floor(np.average(l_left_position) * 10000) / 10000
                     left_std = math.floor(np.std(l_left_position) * 10000) / 10000
                     right_mean = math.floor(np.average(l_right_position) * 10000) / 10000
@@ -239,6 +252,7 @@ class Position_filter:
                 print(line+"\t"+str(left_mean)+"\t"+str(left_std)+"\t"+str(right_mean)+"\t"+str(right_std)+"\t"+str(ref_mismatch_mean)+"\t"+str(alt_mismatch_mean), file=hout)
 
         pysam_file.close()
+
 
     def filter_vcf(self, bam, target_file):
         return None

@@ -123,7 +123,7 @@ def create_parser():
         position_parser.add_argument( '-t', '--target_mutation_file', help = 'mutation text', type = str, default = None, required = True )
         position_parser.add_argument( '-1', '--bam1', help = '1st bam file ( tumor )', type = str, default = None, required = True )
         position_parser.add_argument( '-s', '--samtools_path', type = str, default = "samtools")
-        position_parser.add_argument( '-S', '--mpileup_params', type = str, default = "-q 20 -B -Q15 -d 10000000 --output-BP --output-QNAME")
+        position_parser.add_argument( '-S', '--mpileup_params', type = str, default = "-q 20 -B -Q15 -d 10000000 --output-BP --output-QNAME --output-extra FLAG")
         position_parser.add_argument( '-o', '--output', help = 'Output text file', type = str, default = None, required = True)
         position_parser.add_argument( '-r', '--ref_genome', help = 'Reference genome', type = str, default = None , required = True)
         position_parser.add_argument( '-O', '--print_format', choices = ['vcf','tsv'], help = 'Print VCF or TSV format',  default = 'tsv' )

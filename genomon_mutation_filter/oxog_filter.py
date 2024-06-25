@@ -72,6 +72,7 @@ class Oxog_filter:
 
     def get_ref_gene(self, chrom, start, end, FNULL):
 
+        ret = ""
         # samtools faidx
         reg = chrom + ":" + str(start-2) +"-"+ str(end+2) 
         faidx_cmd = [self.samtools_path, "faidx", self.ref_genome, reg]
