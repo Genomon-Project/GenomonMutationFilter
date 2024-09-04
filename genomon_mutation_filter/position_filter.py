@@ -117,7 +117,7 @@ class Position_filter:
         d_ret = {}
 
         for read in samfile.fetch(chrom,pos1,pos2):
-            d_ret[read.qname] = (read.cigar,read.query_length,read.tags,read.flag)
+            d_ret[read.qname +"\t"+ str(read.flag)] = (read.cigar,read.query_length,read.tags)
 
         return d_ret
 
@@ -221,13 +221,11 @@ class Position_filter:
                     pos1, pos2 = self.prepare_pysam_params(chrom, start, end, alt) 
                     d_qname_pysam = self.pysam_fetch(chrom, pos1, pos2, pysam_file)
 
-                    for idx, qname in enumerate(var2qname[pileup_key]):
+                    for qname, mp_flag, mut_position in zip(var2qname[pileup_key], var2flag[pileup_key], var2pos[pileup_key]):
 
-                        mut_position = var2pos[pileup_key][idx]
-                        cigar, query_length, tags, flag = d_qname_pysam[qname]
-                    
-                        if flag != int(var2flag[pileup_key][idx]): continue
+                        if qname +"\t"+ mp_flag not in d_qname_pysam: continue 
 
+                        cigar, query_length, tags = d_qname_pysam[qname +"\t"+ mp_flag]
                         cigar_left, cigar_right = self.get_cigar_size(cigar)
 
                         l_left_position.append(int(mut_position) - int(cigar_left))
@@ -235,11 +233,13 @@ class Position_filter:
                         l_alt_mismatch.append(int(self.get_nm(tags)))
 
                     l_qnames = var2qname[l_mp[2]] if l_mp[2] in var2qname else []
+                    l_flags = var2flag[l_mp[2]] if l_mp[2] in var2flag else []
                     
-                    for idx, qname in enumerate(l_qnames):
-                        cigar, query_length, tags, flag = d_qname_pysam[qname]
-                    
-                        if flag != int(var2flag[l_mp[2]][idx]): continue
+                    for qname, mp_flag in zip(l_qnames, l_flags):
+
+                        if qname +"\t"+ mp_flag not in d_qname_pysam: continue 
+
+                        cigar, query_length, tags = d_qname_pysam[qname +"\t"+ mp_flag]
 
                         l_ref_mismatch.append(int(self.get_nm(tags)))
 
