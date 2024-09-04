@@ -190,7 +190,7 @@ class Position_filter:
                     print(line, file=hout)
                     continue
                 elif line.startswith("Chr"):
-                    print(line+"\tleft_read_position_mean\tleft_read_positon_sd\tright_read_position_mean\tright_read_position_sd\tref_read_NM_mean\talt_read_NM_mean", file=hout)
+                    print(line+"\tleft_read_position_mean\tleft_read_positon_sd\tright_read_position_mean\tright_read_position_sd\tref_read_NM_mean\talt_read_NM_mean\tNM_without_ALT_len", file=hout)
                     continue
 
                 F = line.split('\t')
@@ -198,6 +198,7 @@ class Position_filter:
                 # annovar input file (not zero-based number)
                 chrom,start,end,ref,alt, is_conv = utils.vcf_fields2anno(F[0], int(F[1]), F[2], F[3]) 
                 pileup_key = self.get_alt_pileup_key(F[2], F[3]) 
+                nm = abs(len(F[2]) - len(F[3])) if len(F[2]) != len(F[3]) else len(F[3])
 
                 left_mean = ""
                 left_std = ""
@@ -205,6 +206,7 @@ class Position_filter:
                 right_std = ""
                 alt_mismatch_mean = ""
                 ref_mismatch_mean = ""
+                nm_without_alt = ""
 
                 # block substitution not suppport
                 if pileup_key != None:
@@ -247,9 +249,10 @@ class Position_filter:
                     left_std = math.floor(np.std(l_left_position) * 10000) / 10000
                     right_mean = math.floor(np.average(l_right_position) * 10000) / 10000
                     right_std = math.floor(np.std(l_right_position) * 10000) / 10000
-                    alt_mismatch_mean = math.floor(np.average(l_alt_mismatch) * 10000) / 10000
                     ref_mismatch_mean = math.floor(np.average(l_ref_mismatch) * 10000) / 10000 if len(l_ref_mismatch) > 0 else None
-                print(line+"\t"+str(left_mean)+"\t"+str(left_std)+"\t"+str(right_mean)+"\t"+str(right_std)+"\t"+str(ref_mismatch_mean)+"\t"+str(alt_mismatch_mean), file=hout)
+                    alt_mismatch_mean = math.floor(np.average(l_alt_mismatch) * 10000) / 10000
+                    nm_without_alt =  math.floor((np.average(l_alt_mismatch) - float(nm))  * 10000) / 10000
+                print(line+"\t"+str(left_mean)+"\t"+str(left_std)+"\t"+str(right_mean)+"\t"+str(right_std)+"\t"+str(ref_mismatch_mean)+"\t"+str(alt_mismatch_mean)+"\t"+str(nm_without_alt), file=hout)
 
         pysam_file.close()
 
