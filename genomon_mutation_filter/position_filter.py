@@ -150,6 +150,10 @@ class Position_filter:
         elif len(ref) == 1 and len(alt) == 1:
             ret = alt
     
+        # for MNV (same processing as SNV)
+        elif len(ref) > 1 and len(alt) > 1 and len(ref) == len(alt):
+            ret = alt[0]
+
         # for block substitution
         else:
             ret = None
