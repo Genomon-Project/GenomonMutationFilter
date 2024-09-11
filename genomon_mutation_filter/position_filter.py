@@ -3,7 +3,6 @@
 import re, sys, math, pysam
 import os
 from scipy import stats
-from . import utils
 import subprocess
 import numpy as np
 
@@ -161,6 +160,44 @@ class Position_filter:
         return ret
 
 
+    def vcf_fields2anno(self, chrom, pos_str, ref_sub, alt_sub):
+        pos = int(pos_str)
+        ref = str(ref_sub)
+        alt = str(alt_sub)
+    
+        # for insertion
+        if len(ref) < len(alt) and len(ref) == 1 and alt[0:1] == ref:
+            start = pos
+            end = pos
+            ret = (chrom, start, end, "-", alt[1:])
+    
+        # for deletion
+        elif len(ref) > len(alt) and len(alt) == 1 and ref[0:1] == alt:
+            start = pos + 1
+            end = pos + len(ref[1:])
+            ret = (chrom, start, end, ref[1:], "-")
+    
+        # for SNV
+        elif len(ref) == 1 and len(alt) == 1:
+            start = pos
+            end = pos
+            ret = (chrom, start, end, ref, alt)
+    
+        # for MNV (same processing as SNV)
+        elif len(ref) > 1 and len(alt) > 1 and len(ref) == len(alt):
+            start = pos
+            end = pos
+            ret = (chrom, start, end, ref, alt)
+
+        # for block substitution
+        else:
+            start = pos - 1
+            end = pos
+            ret = (chrom, start, end, ref, alt)
+    
+        return ret
+
+
     def get_cigar_size(self, cigar):
 
         cigar_left = 0
@@ -200,7 +237,7 @@ class Position_filter:
                 F = line.split('\t')
 
                 # annovar input file (not zero-based number)
-                chrom,start,end,ref,alt, is_conv = utils.vcf_fields2anno(F[0], int(F[1]), F[2], F[3]) 
+                chrom,start,end,ref,alt = self.vcf_fields2anno(F[0], int(F[1]), F[2], F[3]) 
                 pileup_key = self.get_alt_pileup_key(F[2], F[3]) 
                 nm = abs(len(F[2]) - len(F[3])) if len(F[2]) != len(F[3]) else len(F[3])
 
