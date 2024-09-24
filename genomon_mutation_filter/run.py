@@ -73,11 +73,11 @@ def run_oxog_filter(arg):
     is_tsv = True if arg.print_format == 'tsv' else False
 
     logging.info( 'oxog filter start')
-    oxogf = of.Oxog_filter(arg.ref_genome,arg.samtools_path, arg.mpileup_params)
+    oxogf = of.Oxog_filter(arg.samtools_path, arg.mpileup_params)
     if is_tsv == True:
-        oxogf.filter(arg.target_mutation_file, arg.bam1, arg.output, arg.bam3)
+        oxogf.filter(arg.target_mutation_file, arg.bam1, arg.output)
     else:
-        oxogf.filter_vcf(arg.target_mutation_file, arg.bam1, arg.output, arg.bam3)
+        oxogf.filter_vcf(arg.target_mutation_file, arg.bam1, arg.output)
     logging.info( 'oxog filter end')
 
 
