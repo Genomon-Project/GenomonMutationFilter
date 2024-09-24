@@ -100,37 +100,14 @@ class Position_filter:
         return l_ret
 
      
-    def prepare_mpileup_params(self, chrom, start, end, alt): 
-
-        ret = ""
-        if alt == "-":
-            ret = chrom + ":" + str(start-1) +"-"+ str(start-1) 
-        else:
-            ret = chrom + ":" + str(start) +"-"+ str(end) 
-
-        return ret
-
-
     def pysam_fetch(self, chrom, pos1, pos2, samfile):
 
         d_ret = {}
 
-        for read in samfile.fetch(chrom,pos1,pos2):
+        for read in samfile.fetch(chrom,int(pos1)-1,int(pos2)):
             d_ret[read.qname +"\t"+ str(read.flag)] = (read.cigar,read.query_length,read.tags)
 
         return d_ret
-
-
-    def prepare_pysam_params(self, chrom, start, end, alt): 
-
-        pos1, pos2 = None, None
-
-        if alt == "-":
-            pos1, pos2 = start-2, start-1
-        else:
-            pos1, pos2 = start-1, end
-
-        return pos1, pos2
 
 
     def get_alt_pileup_key(self, ref, alt):
@@ -160,52 +137,15 @@ class Position_filter:
         return ret
 
 
-    def vcf_fields2anno(self, chrom, pos_str, ref_sub, alt_sub):
-        pos = int(pos_str)
-        ref = str(ref_sub)
-        alt = str(alt_sub)
-    
-        # for insertion
-        if len(ref) < len(alt) and len(ref) == 1 and alt[0:1] == ref:
-            start = pos
-            end = pos
-            ret = (chrom, start, end, "-", alt[1:])
-    
-        # for deletion
-        elif len(ref) > len(alt) and len(alt) == 1 and ref[0:1] == alt:
-            start = pos + 1
-            end = pos + len(ref[1:])
-            ret = (chrom, start, end, ref[1:], "-")
-    
-        # for SNV
-        elif len(ref) == 1 and len(alt) == 1:
-            start = pos
-            end = pos
-            ret = (chrom, start, end, ref, alt)
-    
-        # for MNV (same processing as SNV)
-        elif len(ref) > 1 and len(alt) > 1 and len(ref) == len(alt):
-            start = pos
-            end = pos
-            ret = (chrom, start, end, ref, alt)
-
-        # for block substitution
-        else:
-            start = pos - 1
-            end = pos
-            ret = (chrom, start, end, ref, alt)
-    
-        return ret
-
-
     def get_cigar_size(self, cigar):
 
+        # softclip:4, hardclip:5
         cigar_left = 0
         cigar_right = 0
 
-        if cigar[0][0] == 4:
+        if cigar[0][0] == 4 or cigar[0][0] == 5:
             cigar_left=cigar[0][1]
-        if cigar[-1][0] == 4:
+        if cigar[-1][0] == 4 or cigar[-1][0] == 5:
             cigar_right=cigar[-1][1]
 
         return cigar_left, cigar_right
@@ -231,13 +171,12 @@ class Position_filter:
                     print(line, file=hout)
                     continue
                 elif line.startswith("Chr"):
-                    print(line+"\tleft_read_position_mean\tleft_read_positon_sd\tright_read_position_mean\tright_read_position_sd\tref_read_NM_mean\talt_read_NM_mean\tNM_without_ALT_len", file=hout)
+                    print(line+"\tleft_read_position_mean\tleft_read_positon_sd\tright_read_position_mean\tright_read_position_sd\tNM_mean_without_ALT_len", file=hout)
                     continue
 
                 F = line.split('\t')
 
                 # annovar input file (not zero-based number)
-                chrom,start,end,ref,alt = self.vcf_fields2anno(F[0], int(F[1]), F[2], F[3]) 
                 pileup_key = self.get_alt_pileup_key(F[2], F[3]) 
                 nm = abs(len(F[2]) - len(F[3])) if len(F[2]) != len(F[3]) else len(F[3])
 
@@ -257,16 +196,15 @@ class Position_filter:
                     l_alt_mismatch = []
                     l_ref_mismatch = []
 
-                    reg = self.prepare_mpileup_params(chrom, start, end, alt) 
-                    l_mp = self.call_mpileup(reg, bam, FNULL)
+                    l_mp = self.call_mpileup(f"{F[0]}:{F[1]}-{F[1]}", bam, FNULL)
                     depth_p, depth_n, var2num, var2pos, var2qname, var2flag  = self.parse_bases(l_mp[4], l_mp[6], l_mp[7], l_mp[8], l_mp[2])
 
-                    pos1, pos2 = self.prepare_pysam_params(chrom, start, end, alt) 
-                    d_qname_pysam = self.pysam_fetch(chrom, pos1, pos2, pysam_file)
+                    d_qname_pysam = self.pysam_fetch(F[0], F[1], F[1], pysam_file)
 
                     for qname, mp_flag, mut_position in zip(var2qname[pileup_key], var2flag[pileup_key], var2pos[pileup_key]):
 
-                        if qname +"\t"+ mp_flag not in d_qname_pysam: continue 
+                        if qname +"\t"+ mp_flag not in d_qname_pysam:
+                            continue 
 
                         cigar, query_length, tags = d_qname_pysam[qname +"\t"+ mp_flag]
                         cigar_left, cigar_right = self.get_cigar_size(cigar)
@@ -275,25 +213,12 @@ class Position_filter:
                         l_right_position.append(int(query_length) - int(cigar_right) - int(mut_position) + 1)
                         l_alt_mismatch.append(int(self.get_nm(tags)))
 
-                    l_qnames = var2qname[l_mp[2]] if l_mp[2] in var2qname else []
-                    l_flags = var2flag[l_mp[2]] if l_mp[2] in var2flag else []
-                    
-                    for qname, mp_flag in zip(l_qnames, l_flags):
-
-                        if qname +"\t"+ mp_flag not in d_qname_pysam: continue 
-
-                        cigar, query_length, tags = d_qname_pysam[qname +"\t"+ mp_flag]
-
-                        l_ref_mismatch.append(int(self.get_nm(tags)))
-
                     left_mean = math.floor(np.average(l_left_position) * 10000) / 10000
                     left_std = math.floor(np.std(l_left_position) * 10000) / 10000
                     right_mean = math.floor(np.average(l_right_position) * 10000) / 10000
                     right_std = math.floor(np.std(l_right_position) * 10000) / 10000
-                    ref_mismatch_mean = math.floor(np.average(l_ref_mismatch) * 10000) / 10000 if len(l_ref_mismatch) > 0 else None
-                    alt_mismatch_mean = math.floor(np.average(l_alt_mismatch) * 10000) / 10000
                     nm_without_alt =  math.floor((np.average(l_alt_mismatch) - float(nm))  * 10000) / 10000
-                print(line+"\t"+str(left_mean)+"\t"+str(left_std)+"\t"+str(right_mean)+"\t"+str(right_std)+"\t"+str(ref_mismatch_mean)+"\t"+str(alt_mismatch_mean)+"\t"+str(nm_without_alt), file=hout)
+                print(line+"\t"+str(left_mean)+"\t"+str(left_std)+"\t"+str(right_mean)+"\t"+str(right_std)+"\t"+str(nm_without_alt), file=hout)
 
         pysam_file.close()
 
