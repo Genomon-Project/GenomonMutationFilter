@@ -2,7 +2,6 @@
 
 import re, sys, math, pysam
 import os
-from scipy import stats
 import subprocess
 import numpy as np
 
