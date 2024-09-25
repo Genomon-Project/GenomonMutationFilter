@@ -15,9 +15,11 @@ class TestOxog(unittest.TestCase):
 
         bases = "A"
         quals = "F"
-        var2nm = oxof.parse_bases(bases, quals)
+        flags = "64"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
 
-        self.assertTrue(var2nm == {"A":1})
+        self.assertTrue(var2nm_1st == {"A":1})
+        self.assertTrue(var2nm_2nd == {"A":0})
 
     def test1_2(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,9 +28,11 @@ class TestOxog(unittest.TestCase):
 
         bases = "AA"
         quals = "FF"
-        var2nm = oxof.parse_bases(bases, quals)
+        flags = "64,99"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
 
-        self.assertTrue(var2nm == {"A":2})
+        self.assertTrue(var2nm_1st == {"A":2})
+        self.assertTrue(var2nm_2nd == {"A":0})
 
     def test1_3(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -37,9 +41,11 @@ class TestOxog(unittest.TestCase):
 
         bases = "tt"
         quals = "FF"
-        var2nm = oxof.parse_bases(bases, quals)
+        flags = "64,75"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
 
-        self.assertTrue(var2nm == {"t":2})
+        self.assertTrue(var2nm_1st == {"t":2})
+        self.assertTrue(var2nm_2nd == {"t":0})
 
     def test1_4(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -48,9 +54,11 @@ class TestOxog(unittest.TestCase):
 
         bases = "A$a"
         quals = "FF"
-        var2nm = oxof.parse_bases(bases, quals)
+        flags = "64,71"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
 
-        self.assertTrue(var2nm == {"A":1,"a":1})
+        self.assertTrue(var2nm_1st == {"A":1,"a":1})
+        self.assertTrue(var2nm_2nd == {"A":0,"a":0})
 
     def test1_5(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -59,9 +67,11 @@ class TestOxog(unittest.TestCase):
 
         bases = "AT-1A"
         quals = "FF"
-        var2nm = oxof.parse_bases(bases, quals)
+        flags = "64,66"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
 
-        self.assertTrue(var2nm == {'A': 1, 'T': 1})
+        self.assertTrue(var2nm_1st == {'A': 1, 'T': 1})
+        self.assertTrue(var2nm_2nd == {"A":0 , "T":0})
 
     def test1_6(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -70,9 +80,11 @@ class TestOxog(unittest.TestCase):
 
         bases = "At+1a"
         quals = "FF"
-        var2nm = oxof.parse_bases(bases, quals)
+        flags = "65,64"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
 
-        self.assertTrue(var2nm == {'A': 1, 't': 1})
+        self.assertTrue(var2nm_1st == {'A': 1, 't': 1})
+        self.assertTrue(var2nm_2nd == {"A":0, "t":0})
 
     def test1_7(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -81,19 +93,87 @@ class TestOxog(unittest.TestCase):
 
         bases = "*N"
         quals = "*F"
-        var2nm = oxof.parse_bases(bases, quals)
+        flags = "63,64"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
 
-        self.assertTrue(var2nm == {'N': 1})
+        self.assertTrue(var2nm_1st == {'N': 1})
+        self.assertTrue(var2nm_2nd == {"N":0})
+
+    def test1_8(self):
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+
+        oxof = of.Oxog_filter(None,None)
+
+        bases = "A"
+        quals = "F"
+        flags = "128"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
+
+        self.assertTrue(var2nm_1st == {"A":0})
+        self.assertTrue(var2nm_2nd == {"A":1})
+
+    def test1_9(self):
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+
+        oxof = of.Oxog_filter(None,None)
+
+        bases = "AA"
+        quals = "FF"
+        flags = "128,163"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
+
+        self.assertTrue(var2nm_1st == {"A":0})
+        self.assertTrue(var2nm_2nd == {"A":2})
+
+    def test1_10(self):
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+
+        oxof = of.Oxog_filter(None,None)
+
+        bases = "tt"
+        quals = "FF"
+        flags = "64,128"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
+
+        self.assertTrue(var2nm_1st == {"t":1})
+        self.assertTrue(var2nm_2nd == {"t":1})
+
+    def test1_11(self):
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+
+        oxof = of.Oxog_filter(None,None)
+
+        bases = "A$a"
+        quals = "FF"
+        flags = "2211,64"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
+
+        self.assertTrue(var2nm_1st == {"A":0,"a":1})
+        self.assertTrue(var2nm_2nd == {"A":1,"a":0})
+
+    def test1_12(self):
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+
+        oxof = of.Oxog_filter(None,None)
+
+        bases = "t+1aA"
+        quals = "FF"
+        flags = "128,128"
+        var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
+
+        self.assertTrue(var2nm_1st == {'A': 0, 't': 0})
+        self.assertTrue(var2nm_2nd == {"A":1, "t":1})
 
     # Error is collect because base length and quals length are not same.
-    # def test1_8(self):
+    # def test1_13(self):
     #     cur_dir = os.path.dirname(os.path.abspath(__file__))
 
     #     oxof = of.Oxog_filter(None,None)
 
     #     bases = "AA"
     #     quals = "F"
-    #     var2nm = oxof.parse_bases(bases, quals)
+    #     flags = "64,64"
+    #     var2nm_1st, var2nm_2nd = oxof.parse_bases(bases, quals, flags)
 
     def test2_1(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))

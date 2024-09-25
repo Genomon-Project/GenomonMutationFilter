@@ -15,8 +15,6 @@ class Position_filter:
         self.ref_genome = ref_genome
         self.samtools_path = samtools_path
         self.mpileup_params = mpileup_params
-        self.target = re.compile( '([\+\-])([0-9]+)([ACGTNRMacgtnrm]+)' )
-        self.remove_chr = re.compile( '\^.' )
 
     def parse_bases(self, bases, positions, qnames, flags, ref):
 

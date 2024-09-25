@@ -5,22 +5,21 @@ import logging
 import subprocess
 import math
 
-
 #
 # Class definitions
 #
 class Oxog_filter:
-
 
     def __init__(self, samtools_path, mpileup_params):
         self.samtools_path = samtools_path
         self.mpileup_params = mpileup_params
     
 
-    def parse_bases(self, bases, qual_list):
+    def parse_bases(self, bases, qual_list, flags):
 
-        var2num = {}
-        var2pos = {}
+        var2num_1st = {}
+        var2num_2nd = {}
+        l_flags = flags.split(',')
     
         base_ind = 0
     
@@ -35,10 +34,16 @@ class Oxog_filter:
                 bases = bases[1:]
             elif bases[0] in ['.', ',', 'A', 'C', 'G', 'T', 'N', 'a', 'c', 'g', 't', 'n']:
                 var = bases[0]
-                if var not in var2num:
-                    var2num[var] = 0
-                var2num[var] = var2num[var] + 1
-    
+                if var not in var2num_1st:
+                    var2num_1st[var] = 0
+                if var not in var2num_2nd:
+                    var2num_2nd[var] = 0
+
+                if int(l_flags[base_ind]) & 64 == 64:
+                   var2num_1st[var] = var2num_1st[var] + 1
+                elif int(l_flags[base_ind]) & 128 == 128:
+                   var2num_2nd[var] = var2num_2nd[var] + 1
+
                 bases = bases[1:]
     
                 if len(bases) > 0 and bases[0] in ['+', '-']:
@@ -52,7 +57,7 @@ class Oxog_filter:
             print("Error???")
             sys.exit(1)
     
-        return var2num
+        return var2num_1st, var2num_2nd
     
     
     def flag_oxog(self, ref, alt, alt_F1R2, alt_F2R1):
@@ -73,7 +78,7 @@ class Oxog_filter:
         d_second_pair_bases = {}
 
         # samtools mpileup 
-        mpileup_cmd = [self.samtools_path, "mpileup", "-r", reg, "--rf", "64"]
+        mpileup_cmd = [self.samtools_path, "mpileup", "-r", reg]
         mpileup_cmd.extend(m_params)
         mpileup_cmd.append(bam_tumor)
 
@@ -82,20 +87,8 @@ class Oxog_filter:
             for mpileup in pileup.stdout:
                 mp_list = mpileup.rstrip('\n').split('\t')
                 # Prepare mpileup data
-                d_first_pair_bases = self.parse_bases(mp_list[4], mp_list[5])
+                d_first_pair_bases, d_second_pair_bases = self.parse_bases(mp_list[4], mp_list[5], mp_list[6])
 
-        # samtools mpileup 
-        mpileup_cmd = [self.samtools_path, "mpileup", "-r", reg, "--rf", "128"]
-        mpileup_cmd.extend(m_params)
-        mpileup_cmd.append(bam_tumor)
-
-        # print mpileup_cmd
-        with subprocess.Popen(mpileup_cmd, encoding='utf-8', stdout=subprocess.PIPE, stderr = FNULL) as pileup:
-            for mpileup in pileup.stdout:
-                mp_list = mpileup.rstrip('\n').split('\t')
-                # Prepare mpileup data
-                d_second_pair_bases = self.parse_bases(mp_list[4], mp_list[5])
-        
         return d_first_pair_bases, d_second_pair_bases
 
 
