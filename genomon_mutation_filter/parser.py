@@ -107,10 +107,13 @@ def create_parser():
         oxog_parser = subparsers.add_parser("oxog")
         oxog_parser.add_argument( '-t', '--target_mutation_file', help = 'mutation text', type = str, default = None, required = True )
         oxog_parser.add_argument( '-1', '--bam1', help = '1st bam file ( tumor )', type = str, default = None, required = True )
+        oxog_parser.add_argument( '-A', '--sample1', help = '1st sample name ( disease )', type = str, default = None)
+        oxog_parser.add_argument( '-B', '--sample2', help = '2nd sample name ( control )', type = str, default = None)
         oxog_parser.add_argument( '-s', '--samtools_path', type = str, default = "samtools")
         oxog_parser.add_argument( '-S', '--mpileup_params', type = str, default = "-q 20 -B -Q15 -d 10000000 --output-extra FLAG -x")
         oxog_parser.add_argument( '-o', '--output', help = 'Output text file', type = str, default = None, required = True)
-        oxog_parser.add_argument( '-O', '--print_format', choices = ['vcf','anno'], help = 'Print VCF or TSV format',  default = 'tsv' )
+        oxog_parser.add_argument( '-O', '--print_format', choices = ['vcf','tsv'], help = 'Print VCF or TSV format',  default = 'tsv' )
+        oxog_parser.add_argument( '-T', '--thread_num', metavar = "number_of_threads", default='1', type=int, help="multi threads is supported only by vcf")
 
         return oxog_parser
 
@@ -120,11 +123,14 @@ def create_parser():
         position_parser = subparsers.add_parser("position")
         position_parser.add_argument( '-t', '--target_mutation_file', help = 'mutation text', type = str, default = None, required = True )
         position_parser.add_argument( '-1', '--bam1', help = '1st bam file ( tumor )', type = str, default = None, required = True )
+        position_parser.add_argument( '-A', '--sample1', help = '1st sample name ( disease )', type = str, default = None)
+        position_parser.add_argument( '-B', '--sample2', help = '2nd sample name ( control )', type = str, default = None)
         position_parser.add_argument( '-s', '--samtools_path', type = str, default = "samtools")
         position_parser.add_argument( '-S', '--mpileup_params', type = str, default = "-q 20 -B -Q15 -d 10000000 --output-BP --output-QNAME --output-extra FLAG")
         position_parser.add_argument( '-o', '--output', help = 'Output text file', type = str, default = None, required = True)
         position_parser.add_argument( '-r', '--ref_genome', help = 'Reference genome', type = str, default = None , required = True)
         position_parser.add_argument( '-O', '--print_format', choices = ['vcf','tsv'], help = 'Print VCF or TSV format',  default = 'tsv' )
+        position_parser.add_argument( '-T', '--thread_num', metavar = "number_of_threads", default='1', type=int, help="multi threads is supported only by vcf")
 
         return position_parser
 

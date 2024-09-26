@@ -4,6 +4,11 @@ import re, sys, math, pysam
 import os
 import subprocess
 import numpy as np
+import vcf
+import copy
+import collections
+import multiprocessing
+from . import utils
 
 
 #
@@ -11,10 +16,11 @@ import numpy as np
 #
 class Position_filter:
 
-    def __init__(self,ref_genome, samtools_path, mpileup_params):
+    def __init__(self,ref_genome, samtools_path, mpileup_params, thread_num):
         self.ref_genome = ref_genome
         self.samtools_path = samtools_path
         self.mpileup_params = mpileup_params
+        self.thread_num = thread_num
 
     def parse_bases(self, bases, positions, qnames, flags, ref):
 
@@ -27,7 +33,6 @@ class Position_filter:
         l_qnames = qnames.split(',')
         l_flags = flags.split(',')
         base_ind = 0
-        depth_p, depth_n = 0, 0
     
         while bases != '':
             if bases[0] in ['>', '<', '*']: 
@@ -49,11 +54,6 @@ class Position_filter:
                 var2pos[var].append(l_positions[base_ind])
                 var2qname[var].append(l_qnames[base_ind])
                 var2flag[var].append(l_flags[base_ind])
-    
-                if bases[0] in ['.', 'A', 'C', 'G', 'T', 'N']:
-                    depth_p = depth_p + 1
-                else:
-                    depth_n = depth_n + 1
     
                 bases = bases[1:]
     
@@ -77,7 +77,7 @@ class Position_filter:
             print("Error???")
             sys.exit(1)
     
-        return depth_p, depth_n, var2num, var2pos, var2qname, var2flag
+        return var2num, var2pos, var2qname, var2flag
     
     
     def call_mpileup(self, reg, bam, FNULL):
@@ -181,45 +181,188 @@ class Position_filter:
                 left_std = ""
                 right_mean = ""
                 right_std = ""
-                alt_mismatch_mean = ""
-                ref_mismatch_mean = ""
                 nm_without_alt = ""
 
                 # block substitution not suppport
                 if pileup_key != None:
                 
-                    l_left_position = []
-                    l_right_position = []
-                    l_alt_mismatch = []
-                    l_ref_mismatch = []
-
                     l_mp = self.call_mpileup(f"{F[0]}:{F[1]}-{F[1]}", bam, FNULL)
-                    depth_p, depth_n, var2num, var2pos, var2qname, var2flag  = self.parse_bases(l_mp[4], l_mp[6], l_mp[7], l_mp[8], l_mp[2])
+                    var2num, var2pos, var2qname, var2flag  = self.parse_bases(l_mp[4], l_mp[6], l_mp[7], l_mp[8], l_mp[2])
+                    if pileup_key in var2num:
 
-                    d_qname_pysam = self.pysam_fetch(F[0], F[1], F[1], pysam_file)
+                        l_left_position = []
+                        l_right_position = []
+                        l_alt_mismatch = []
 
-                    for qname, mp_flag, mut_position in zip(var2qname[pileup_key], var2flag[pileup_key], var2pos[pileup_key]):
+                        d_qname_pysam = self.pysam_fetch(F[0], F[1], F[1], pysam_file)
 
-                        if qname +"\t"+ mp_flag not in d_qname_pysam:
-                            continue 
+                        for qname, mp_flag, mut_position in zip(var2qname[pileup_key], var2flag[pileup_key], var2pos[pileup_key]):
 
-                        cigar, query_length, tags = d_qname_pysam[qname +"\t"+ mp_flag]
-                        cigar_left, cigar_right = self.get_cigar_size(cigar)
+                            if qname +"\t"+ mp_flag not in d_qname_pysam:
+                                continue 
 
-                        l_left_position.append(int(mut_position) - int(cigar_left))
-                        l_right_position.append(int(query_length) - int(cigar_right) - int(mut_position) + 1)
-                        l_alt_mismatch.append(int(self.get_nm(tags)))
+                            cigar, query_length, tags = d_qname_pysam[qname +"\t"+ mp_flag]
+                            cigar_left, cigar_right = self.get_cigar_size(cigar)
 
-                    left_mean = math.floor(np.average(l_left_position) * 10000) / 10000
-                    left_std = math.floor(np.std(l_left_position) * 10000) / 10000
-                    right_mean = math.floor(np.average(l_right_position) * 10000) / 10000
-                    right_std = math.floor(np.std(l_right_position) * 10000) / 10000
-                    nm_without_alt =  math.floor((np.average(l_alt_mismatch) - float(nm))  * 10000) / 10000
+                            l_left_position.append(int(mut_position) - int(cigar_left))
+                            l_right_position.append(int(query_length) - int(cigar_right) - int(mut_position) + 1)
+                            l_alt_mismatch.append(int(self.get_nm(tags)))
+
+                        fct = 1000
+                        left_mean = math.floor(np.average(l_left_position) * fct) / fct
+                        left_std = math.floor(np.std(l_left_position) * fct) / fct
+                        right_mean = math.floor(np.average(l_right_position) * fct) / fct
+                        right_std = math.floor(np.std(l_right_position) * fct) / fct
+                        nm_without_alt =  math.floor((np.average(l_alt_mismatch) - float(nm))  * fct) / fct
+
                 print(line+"\t"+str(left_mean)+"\t"+str(left_std)+"\t"+str(right_mean)+"\t"+str(right_std)+"\t"+str(nm_without_alt), file=hout)
 
         pysam_file.close()
 
 
-    def filter_vcf(self, bam, target_file):
+    def add_meta_vcf(self, vcf_reader):
+        vcf_reader.formats['LPM'] = vcf.parser._Format('LPM', 1, 'Float', "Mean position of the mismatches in bases starting from left end")
+        vcf_reader.formats['LPS'] = vcf.parser._Format('LPS', 1, 'Float', "Standard devition position of the mismatches in bases starting from left end")
+        vcf_reader.formats['RPM'] = vcf.parser._Format('RPM', 1, 'Float', "Mean position of the mismatches in bases starting from right end")
+        vcf_reader.formats['RPS'] = vcf.parser._Format('RPS', 1, 'Float', "Standard devition position of the mismatches in bases starting from right end")
+        vcf_reader.formats['NMA'] = vcf.parser._Format('NMA', 1, 'Float', "Mean number of the mismathes without ALT length")
+
+
+    def filter_main_vcf(self, in_mutation_file, bam_tumor, output, tumor_sample, normal_sample):
+
+        pysam_file = pysam.AlignmentFile(bam_tumor)
+    
+        with open(in_mutation_file, "r") as srcfile, open(output,'w') as hout, open(os.devnull, 'w') as FNULL:
+
+            vcf_reader = vcf.Reader(srcfile)
+            f_keys = vcf_reader.formats.keys() #it's an ordered dict
+            len_f_keys_before_new_meta = len(f_keys)
+            self.add_meta_vcf(vcf_reader)
+            sample_list = vcf_reader.samples
+
+            vcf_writer = vcf.Writer(hout, vcf_reader)
+
+            for record in vcf_reader:
+                new_record = copy.deepcopy(record)
+
+                # annovar input file (not zero-based number)
+                pileup_key = self.get_alt_pileup_key(record.REF, str(record.ALT[0])) 
+                nm = abs(len(record.REF) - len(record.ALT[0])) if len(record.REF) != len(record.ALT[0]) else len(record.ALT[0])
+
+                left_mean = "."
+                left_std = "."
+                right_mean = "."
+                right_std = "."
+                nm_without_alt = "."
+
+                # block substitution not suppport
+                if pileup_key != None:
+
+                    l_mp = self.call_mpileup(f"{record.CHROM}:{record.POS}-{record.POS}", bam_tumor, FNULL)
+                    var2num, var2pos, var2qname, var2flag  = self.parse_bases(l_mp[4], l_mp[6], l_mp[7], l_mp[8], l_mp[2])
+                    if pileup_key in var2num:
+                    
+                        l_left_position = []
+                        l_right_position = []
+                        l_alt_mismatch = []
+
+                        d_qname_pysam = self.pysam_fetch(record.CHROM, record.POS, record.POS, pysam_file)
+
+                        for qname, mp_flag, mut_position in zip(var2qname[pileup_key], var2flag[pileup_key], var2pos[pileup_key]):
+
+                            if qname +"\t"+ mp_flag not in d_qname_pysam:
+                                continue 
+
+                            cigar, query_length, tags = d_qname_pysam[qname +"\t"+ mp_flag]
+                            cigar_left, cigar_right = self.get_cigar_size(cigar)
+
+                            l_left_position.append(int(mut_position) - int(cigar_left))
+                            l_right_position.append(int(query_length) - int(cigar_right) - int(mut_position) + 1)
+                            l_alt_mismatch.append(int(self.get_nm(tags)))
+                       
+                        fct = 1000
+                        left_mean = math.floor(np.average(l_left_position) * fct) / fct
+                        left_std = math.floor(np.std(l_left_position) * fct) / fct
+                        right_mean = math.floor(np.average(l_right_position) * fct) / fct
+                        right_std = math.floor(np.std(l_right_position) * fct) / fct
+                        nm_without_alt =  math.floor((np.average(l_alt_mismatch) - float(nm))  * fct) / fct
+
+                # Add FPRMAT
+                new_record.FORMAT = new_record.FORMAT+":LPM:LPS:RPM:RPS:NMA"
+                ## tumor sample
+                sx = sample_list.index(tumor_sample)
+                new_record.samples[sx].data = collections.namedtuple('CallData', f_keys)
+                f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys_before_new_meta)]
+                handy_dict = dict(zip(f_keys, f_vals))
+                handy_dict['LPM'] = left_mean
+                handy_dict['LPS'] = left_std
+                handy_dict['RPM'] = right_mean
+                handy_dict['RPS'] = right_std
+                handy_dict['NMA'] = nm_without_alt
+                new_vals = [handy_dict[x] for x in f_keys]
+                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+                ## normal sample
+                if normal_sample != None:
+                    sx = sample_list.index(normal_sample)
+                    new_record.samples[sx].data = collections.namedtuple('CallData', f_keys)
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys_before_new_meta)]
+                    handy_dict = dict(zip(f_keys, f_vals))
+                    handy_dict['LPM'] = "."
+                    handy_dict['LPS'] = "."
+                    handy_dict['RPM'] = "."
+                    handy_dict['RPS'] = "."
+                    handy_dict['NMA'] = "."
+                    new_vals = [handy_dict[x] for x in f_keys]
+                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+
+                vcf_writer.write_record(new_record)
+
+        pysam_file.close()
+
+
+    def filter_vcf(self, in_mutation_file, bam_tumor, output, tumor_sample, normal_sample):
+
+        thread_num_mod = 1
+        #
+        # multi thread
+        #             
+        if self.thread_num > 1:
+            thread_num_mod = utils.partition_vcf(in_mutation_file, self.thread_num)
+            jobs = []
+            for idx in range(1, thread_num_mod+1): 
+                proc = multiprocessing.Process(target = self.filter_main_vcf, \
+                    args = (in_mutation_file +"."+ str(idx), bam_tumor, output +"."+ str(idx), tumor_sample, normal_sample))
+                jobs.append(proc)
+                proc.start()
+
+            for idx in range(0, thread_num_mod): 
+                jobs[idx].join() 
+                if jobs[idx].exitcode != 0:
+                    raise RuntimeError('There was an error!')
+
+            with open(in_mutation_file, 'r') as hin:
+                vcf_reader = vcf.Reader(hin)
+                self.add_meta_vcf(vcf_reader)
+                with open(output, 'w') as hout:
+                    vcf_writer = vcf.Writer(hout, vcf_reader)
+                    for idx in range(1, thread_num_mod+1): 
+                        with open(output +"."+ str(idx), 'r') as hin_tmp:
+                            vcf_reader_tmp = vcf.Reader(hin_tmp)
+                            for record in vcf_reader_tmp:
+                                vcf_writer.write_record(record)
+                vcf_writer.close()
+
+        #
+        # single thread
+        # 
+        else:
+            self.filter_main_vcf(in_mutation_file, bam_tumor, output, tumor_sample, normal_sample)
+
+        ####
+        for idx in range(1, thread_num_mod+1): 
+            if os.path.exists(in_mutation_file +"."+str(idx)): os.unlink(in_mutation_file +"."+str(idx))
+            if os.path.exists(output +"."+str(idx)): os.unlink(output +"."+str(idx))
+
+
         return None
 

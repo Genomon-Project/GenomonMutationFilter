@@ -73,11 +73,11 @@ def run_oxog_filter(arg):
     is_tsv = True if arg.print_format == 'tsv' else False
 
     logging.info( 'oxog filter start')
-    oxogf = of.Oxog_filter(arg.samtools_path, arg.mpileup_params)
+    oxogf = of.Oxog_filter(arg.samtools_path, arg.mpileup_params, arg.thread_num)
     if is_tsv == True:
         oxogf.filter(arg.target_mutation_file, arg.bam1, arg.output)
     else:
-        oxogf.filter_vcf(arg.target_mutation_file, arg.bam1, arg.output)
+        oxogf.filter_vcf(arg.target_mutation_file, arg.bam1, arg.output, arg.sample1, arg.sample2)
     logging.info( 'oxog filter end')
 
 
@@ -86,11 +86,11 @@ def run_position_filter(arg):
     is_tsv = True if arg.print_format == 'tsv' else False
 
     logging.info( 'position filter start')
-    posf = pf.Position_filter(arg.ref_genome, arg.samtools_path, arg.mpileup_params)
+    posf = pf.Position_filter(arg.ref_genome, arg.samtools_path, arg.mpileup_params, arg.thread_num)
     if is_tsv == True:
         posf.filter(arg.target_mutation_file, arg.bam1, arg.output)
     else:
-        posf.filter_vcf(arg.target_mutation_file, arg.bam1, arg.output)
+        posf.filter_vcf(arg.target_mutation_file, arg.bam1, arg.output, arg.sample1, arg.sample2)
     logging.info( 'position filter end')
 
 

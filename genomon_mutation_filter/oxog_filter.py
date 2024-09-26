@@ -4,15 +4,21 @@ import re
 import logging
 import subprocess
 import math
+import vcf
+import copy
+import collections
+import multiprocessing
+from . import utils
 
 #
 # Class definitions
 #
 class Oxog_filter:
 
-    def __init__(self, samtools_path, mpileup_params):
+    def __init__(self, samtools_path, mpileup_params, thread_num):
         self.samtools_path = samtools_path
         self.mpileup_params = mpileup_params
+        self.thread_num = thread_num
     
 
     def parse_bases(self, bases, qual_list, flags):
@@ -123,8 +129,114 @@ class Oxog_filter:
                     print(line+"\t\t\t",file=hout)
 
 
+    def add_meta_vcf(self, vcf_reader):
+        vcf_reader.formats['OF1R2'] = vcf.parser._Format('OF1R2', 1, 'Integer', "Number of F1R2 reads with ALT mismatch for oxoG")
+        vcf_reader.formats['OF2R1'] = vcf.parser._Format('OF2R1', 1, 'Integer', "Number of F2R1 reads with ALT mismatch for oxoG")
+        vcf_reader.infos['OXOG'] = vcf.parser._Info('OXOG', 0, 'Flag', "OxoG mutation pattern", "MutationFilter", "")
 
-    def filter_vcf(self, in_mutation_file, bam_tumor, output):
 
-        return None
+    def filter_main_vcf(self, in_mutation_file, bam_tumor, output, tumor_sample, normal_sample):
+
+        with open(in_mutation_file, "r") as srcfile, open(output,'w') as hout, open(os.devnull, 'w') as FNULL:
+
+            vcf_reader = vcf.Reader(srcfile)
+            f_keys = vcf_reader.formats.keys() #it's an ordered dict
+            len_f_keys_before_new_meta = len(f_keys)
+            self.add_meta_vcf(vcf_reader)
+            sample_list = vcf_reader.samples
+
+            vcf_writer = vcf.Writer(hout, vcf_reader)
+
+            for record in vcf_reader:
+                new_record = copy.deepcopy(record)
+
+                f_oxog = 0
+                f1r2 = "."
+                f2r1 = "."
+
+                if len(record.REF) == 1 and len(str(record.ALT[0])) == 1:
+                    d_first_pair_bases, d_second_pair_bases = self.call_mpileup(f"{record.CHROM}:{record.POS}-{record.POS}", bam_tumor, FNULL)
+
+                    #  F1R2 (forward 1st, reverse 2nd)
+                    #  F2R1 (forward 2nd, reverse 1st)
+                    f1 = d_first_pair_bases[str(record.ALT[0]).upper()] if str(record.ALT[0]).upper() in d_first_pair_bases else 0
+                    r1 = d_first_pair_bases[str(record.ALT[0]).lower()] if str(record.ALT[0]).lower() in d_first_pair_bases else 0
+                    f2 = d_second_pair_bases[str(record.ALT[0]).upper()] if str(record.ALT[0]).upper() in d_second_pair_bases else 0
+                    r2 = d_second_pair_bases[str(record.ALT[0]).lower()] if str(record.ALT[0]).lower() in d_second_pair_bases else 0
+                    f_oxog = self.flag_oxog(record.REF, str(record.ALT[0]), f1+r2, f2+r1)
+                    f1r2 = f1+r2
+                    f2r1 = f2+r1
+
+                new_record.INFO['OXOG'] = True if f_oxog == 1 else False
+
+                # Add FPRMAT
+                new_record.FORMAT = new_record.FORMAT+":OF1R2:OF2R1"
+                ## tumor sample
+                sx = sample_list.index(tumor_sample)
+                new_record.samples[sx].data = collections.namedtuple('CallData', f_keys)
+                f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys_before_new_meta)]
+                handy_dict = dict(zip(f_keys, f_vals))
+                handy_dict['OF1R2'] = f1r2
+                handy_dict['OF2R1'] = f2r1
+                new_vals = [handy_dict[x] for x in f_keys]
+                new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+                ## normal sample
+                if normal_sample != None:
+                    sx = sample_list.index(normal_sample)
+                    new_record.samples[sx].data = collections.namedtuple('CallData', f_keys)
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys_before_new_meta)]
+                    handy_dict = dict(zip(f_keys, f_vals))
+                    handy_dict['OF1R2'] = "."
+                    handy_dict['OF2R1'] = "."
+                    new_vals = [handy_dict[x] for x in f_keys]
+                    new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
+
+                vcf_writer.write_record(new_record)
+
+        vcf_writer.close()
+
+
+    def filter_vcf(self, in_mutation_file, bam_tumor, output, tumor_sample, normal_sample):
+
+        thread_num_mod = 1
+        #
+        # multi thread
+        #             
+        if self.thread_num > 1:
+            thread_num_mod = utils.partition_vcf(in_mutation_file, self.thread_num)
+            jobs = []
+            for idx in range(1, thread_num_mod+1): 
+                proc = multiprocessing.Process(target = self.filter_main_vcf, \
+                    args = (in_mutation_file +"."+ str(idx), bam_tumor, output +"."+ str(idx), tumor_sample, normal_sample))
+                jobs.append(proc)
+                proc.start()
+
+            for idx in range(0, thread_num_mod): 
+                jobs[idx].join() 
+                if jobs[idx].exitcode != 0:
+                    raise RuntimeError('There was an error!')
+
+            with open(in_mutation_file, 'r') as hin:
+                vcf_reader = vcf.Reader(hin)
+                self.add_meta_vcf(vcf_reader)
+                with open(output, 'w') as hout:
+                    vcf_writer = vcf.Writer(hout, vcf_reader)
+                    for idx in range(1, thread_num_mod+1): 
+                        with open(output +"."+ str(idx), 'r') as hin_tmp:
+                            vcf_reader_tmp = vcf.Reader(hin_tmp)
+                            for record in vcf_reader_tmp:
+                                vcf_writer.write_record(record)
+                vcf_writer.close()
+
+        #
+        # single thread
+        # 
+        else:
+            self.filter_main_vcf(in_mutation_file, bam_tumor, output, tumor_sample, normal_sample)
+
+        ####
+        for idx in range(1, thread_num_mod+1): 
+            if os.path.exists(in_mutation_file +"."+str(idx)): os.unlink(in_mutation_file +"."+str(idx))
+            if os.path.exists(output +"."+str(idx)): os.unlink(output +"."+str(idx))
+
 

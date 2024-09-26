@@ -11,7 +11,7 @@ class TestOxog(unittest.TestCase):
     def test1_1(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "A"
         quals = "F"
@@ -24,7 +24,7 @@ class TestOxog(unittest.TestCase):
     def test1_2(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "AA"
         quals = "FF"
@@ -37,7 +37,7 @@ class TestOxog(unittest.TestCase):
     def test1_3(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "tt"
         quals = "FF"
@@ -50,7 +50,7 @@ class TestOxog(unittest.TestCase):
     def test1_4(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "A$a"
         quals = "FF"
@@ -63,7 +63,7 @@ class TestOxog(unittest.TestCase):
     def test1_5(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "AT-1A"
         quals = "FF"
@@ -76,7 +76,7 @@ class TestOxog(unittest.TestCase):
     def test1_6(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "At+1a"
         quals = "FF"
@@ -89,7 +89,7 @@ class TestOxog(unittest.TestCase):
     def test1_7(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "*N"
         quals = "*F"
@@ -102,7 +102,7 @@ class TestOxog(unittest.TestCase):
     def test1_8(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "A"
         quals = "F"
@@ -115,7 +115,7 @@ class TestOxog(unittest.TestCase):
     def test1_9(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "AA"
         quals = "FF"
@@ -128,7 +128,7 @@ class TestOxog(unittest.TestCase):
     def test1_10(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "tt"
         quals = "FF"
@@ -141,7 +141,7 @@ class TestOxog(unittest.TestCase):
     def test1_11(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "A$a"
         quals = "FF"
@@ -154,7 +154,7 @@ class TestOxog(unittest.TestCase):
     def test1_12(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         bases = "t+1aA"
         quals = "FF"
@@ -168,7 +168,7 @@ class TestOxog(unittest.TestCase):
     # def test1_13(self):
     #     cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-    #     oxof = of.Oxog_filter(None,None)
+    #     oxof = of.Oxog_filter(None,None,None)
 
     #     bases = "AA"
     #     quals = "F"
@@ -178,7 +178,7 @@ class TestOxog(unittest.TestCase):
     def test2_1(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         ref = "C"
         alt = "A"
@@ -190,7 +190,7 @@ class TestOxog(unittest.TestCase):
     def test2_2(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         ref = "C"
         alt = "A"
@@ -202,7 +202,7 @@ class TestOxog(unittest.TestCase):
     def test2_3(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         ref = "C"
         alt = "A"
@@ -214,7 +214,7 @@ class TestOxog(unittest.TestCase):
     def test2_4(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         ref = "G"
         alt = "T"
@@ -226,7 +226,7 @@ class TestOxog(unittest.TestCase):
     def test2_5(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         ref = "G"
         alt = "T"
@@ -238,7 +238,7 @@ class TestOxog(unittest.TestCase):
     def test2_6(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter(None,None)
+        oxof = of.Oxog_filter(None,None,None)
 
         ref = "G"
         alt = "T"
@@ -250,7 +250,7 @@ class TestOxog(unittest.TestCase):
     def test3_1(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        oxof = of.Oxog_filter("samtools","-q 20 -B -Q15 -d 10000000")
+        oxof = of.Oxog_filter("samtools","-q 20 -B -Q15 -d 10000000 --output-extra FLAG -x",1)
         bam = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         reg = "chr1:12345678-12345678"
 
@@ -259,5 +259,18 @@ class TestOxog(unittest.TestCase):
 
         self.assertTrue(True)
 
+
+    def test4_1(self):
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+
+        oxof = of.Oxog_filter("samtools","-q 20 -B -Q15 -d 10000000 --output-extra FLAG -x",1)
+        bam = cur_dir + "/../data/5929_tumor_small.markdup.bam"
+        in_vcf = cur_dir + "/../data/5929_small_mutation_result_test21.txt"
+        output = cur_dir + "/../data/5929_small_mutation_result_test21_oxogout.txt"
+
+        with open(os.devnull, 'w') as FNULL:
+            oxof.filter_main_vcf(in_vcf, bam, output, "5929_tumor", "5929_control")
+
+        self.assertTrue(True)
 
 
