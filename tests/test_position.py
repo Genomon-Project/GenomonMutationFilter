@@ -276,7 +276,7 @@ class TestPosition(unittest.TestCase):
     def test5_1(self):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
 
-        ref_genome = cur_dir + "/../database/GRCh37/GRCh37.fa"
+        ref_genome = cur_dir + "/../data/GRCh37/GRCh37.fa"
         posf = pf.Position_filter(ref_genome,"samtools","-q 20 -B -Q15 -d 10000000 --output-BP --output-QNAME --output-extra FLAG", 1)
         bam = cur_dir + "/../data/5929_tumor_small.markdup.bam"
         in_vcf = cur_dir + "/../data/5929_small_mutation_result_test21.txt"

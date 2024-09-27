@@ -235,8 +235,6 @@ class Position_filter:
         with open(in_mutation_file, "r") as srcfile, open(output,'w') as hout, open(os.devnull, 'w') as FNULL:
 
             vcf_reader = vcf.Reader(srcfile)
-            f_keys = vcf_reader.formats.keys() #it's an ordered dict
-            len_f_keys_before_new_meta = len(f_keys)
             self.add_meta_vcf(vcf_reader)
             sample_list = vcf_reader.samples
 
@@ -291,28 +289,29 @@ class Position_filter:
                 new_record.FORMAT = new_record.FORMAT+":LPM:LPS:RPM:RPS:NMA"
                 ## tumor sample
                 sx = sample_list.index(tumor_sample)
-                new_record.samples[sx].data = collections.namedtuple('CallData', f_keys)
-                f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys_before_new_meta)]
+                f_keys = record.samples[sx].data._fields
+                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
                 handy_dict = dict(zip(f_keys, f_vals))
                 handy_dict['LPM'] = left_mean
                 handy_dict['LPS'] = left_std
                 handy_dict['RPM'] = right_mean
                 handy_dict['RPS'] = right_std
                 handy_dict['NMA'] = nm_without_alt
-                new_vals = [handy_dict[x] for x in f_keys]
+                new_record.samples[sx].data = collections.namedtuple('CallData', f_keys+("LPM","LPS","RPM","RPS","NMA",))
+                new_vals = [handy_dict[x] for x in f_keys+("LPM","LPS","RPM","RPS","NMA",)]
                 new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
                 ## normal sample
                 if normal_sample != None:
                     sx = sample_list.index(normal_sample)
-                    new_record.samples[sx].data = collections.namedtuple('CallData', f_keys)
-                    f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys_before_new_meta)]
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
                     handy_dict = dict(zip(f_keys, f_vals))
                     handy_dict['LPM'] = "."
                     handy_dict['LPS'] = "."
                     handy_dict['RPM'] = "."
                     handy_dict['RPS'] = "."
                     handy_dict['NMA'] = "."
-                    new_vals = [handy_dict[x] for x in f_keys]
+                    new_record.samples[sx].data = collections.namedtuple('CallData', f_keys+("LPM","LPS","RPM","RPS","NMA",))
+                    new_vals = [handy_dict[x] for x in f_keys+("LPM","LPS","RPM","RPS","NMA",)]
                     new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
 
                 vcf_writer.write_record(new_record)

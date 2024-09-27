@@ -140,8 +140,6 @@ class Oxog_filter:
         with open(in_mutation_file, "r") as srcfile, open(output,'w') as hout, open(os.devnull, 'w') as FNULL:
 
             vcf_reader = vcf.Reader(srcfile)
-            f_keys = vcf_reader.formats.keys() #it's an ordered dict
-            len_f_keys_before_new_meta = len(f_keys)
             self.add_meta_vcf(vcf_reader)
             sample_list = vcf_reader.samples
 
@@ -173,22 +171,23 @@ class Oxog_filter:
                 new_record.FORMAT = new_record.FORMAT+":OF1R2:OF2R1"
                 ## tumor sample
                 sx = sample_list.index(tumor_sample)
-                new_record.samples[sx].data = collections.namedtuple('CallData', f_keys)
-                f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys_before_new_meta)]
+                f_keys = record.samples[sx].data._fields
+                f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
                 handy_dict = dict(zip(f_keys, f_vals))
                 handy_dict['OF1R2'] = f1r2
                 handy_dict['OF2R1'] = f2r1
-                new_vals = [handy_dict[x] for x in f_keys]
+                new_record.samples[sx].data = collections.namedtuple('CallData', f_keys+("OF1R2","OF2R1",))
+                new_vals = [handy_dict[x] for x in f_keys+("OF1R2","OF2R1",)]
                 new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
                 ## normal sample
                 if normal_sample != None:
                     sx = sample_list.index(normal_sample)
-                    new_record.samples[sx].data = collections.namedtuple('CallData', f_keys)
-                    f_vals = [record.samples[sx].data[vx] for vx in range(len_f_keys_before_new_meta)]
+                    f_vals = [record.samples[sx].data[vx] for vx in range(len(f_keys))]
                     handy_dict = dict(zip(f_keys, f_vals))
                     handy_dict['OF1R2'] = "."
                     handy_dict['OF2R1'] = "."
-                    new_vals = [handy_dict[x] for x in f_keys]
+                    new_record.samples[sx].data = collections.namedtuple('CallData', f_keys+("OF1R2","OF2R1",))
+                    new_vals = [handy_dict[x] for x in f_keys+("OF1R2","OF2R1",)]
                     new_record.samples[sx].data = new_record.samples[sx].data._make(new_vals)
 
                 vcf_writer.write_record(new_record)
